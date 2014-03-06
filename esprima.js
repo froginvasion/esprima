@@ -171,6 +171,7 @@ parseYieldExpression: true
         ThisExpression: 'ThisExpression',
         ThrowStatement: 'ThrowStatement',
         TryStatement: 'TryStatement',
+        TypeDeclaration: 'TypeDeclaration',
         UnaryExpression: 'UnaryExpression',
         UpdateExpression: 'UpdateExpression',
         VariableDeclaration: 'VariableDeclaration',
@@ -311,6 +312,19 @@ parseYieldExpression: true
             (ch >= 48 && ch <= 57) ||         // 0..9
             (ch === 92) ||                    // \ (backslash)
             ((ch >= 0x80) && Regex.NonAsciiIdentifierPart.test(String.fromCharCode(ch)));
+    }
+
+    function isTypeReservedWord(id) {
+        switch (id) {
+            case 'any':
+            case 'void':
+            case 'string':
+            case 'number':
+            case 'boolean':
+                return true;
+            default:
+                return false;
+        }
     }
 
     // 7.6.1.2 Future Reserved Words
@@ -1656,12 +1670,11 @@ parseYieldExpression: true
             };
         },
 
-        createFunctionDeclaration: function (id, params, defaults, types, returnType, body, rest, generator, expression) {
+        createFunctionDeclaration: function (id, params, defaults, returnType, body, rest, generator, expression) {
             return {
                 type: Syntax.FunctionDeclaration,
                 id: id,
                 params: params,
-                argumentTypes: types,
                 returnType: returnType,
                 defaults: defaults,
                 body: body,
@@ -1671,13 +1684,12 @@ parseYieldExpression: true
             };
         },
 
-        createFunctionExpression: function (id, params, defaults, types, returnType, body, rest, generator, expression) {
+        createFunctionExpression: function (id, params, defaults, returnType, body, rest, generator, expression) {
             return {
                 type: Syntax.FunctionExpression,
                 id: id,
                 params: params,
                 defaults: defaults,
-                argumentTypes: types,
                 returnType: returnType,
                 body: body,
                 rest: rest,
@@ -2004,6 +2016,13 @@ parseYieldExpression: true
                 source: source,
                 body: body
             };
+        },
+
+        createTypeDeclaration: function (name) {
+            return {
+                type: Syntax.TypeDeclaration,
+                name: name
+            };
         }
 
 
@@ -2291,7 +2310,7 @@ parseYieldExpression: true
         strict = previousStrict;
         state.yieldAllowed = previousYieldAllowed;
 
-        return delegate.createFunctionExpression(null, params, defaults, body, options.rest || null, options.generator, body.type !== Syntax.BlockStatement);
+        return delegate.createFunctionExpression(null, params, defaults, null, body, options.rest || null, options.generator, body.type !== Syntax.BlockStatement);
     }
 
 
@@ -3174,6 +3193,15 @@ parseYieldExpression: true
         expect('}');
 
         return delegate.createBlockStatement(block);
+    }
+
+    function parseTypeIdentifier() {
+        //either it is
+        var token = lex();
+        if (token.type !== Token.Identifier && !matchKeyword("void") && !isTypeReservedWord(token.value)) {
+            throwUnexpected(token);
+        }
+        return delegate.createTypeDeclaration(token.value);
     }
 
     // 12.2 Variable Statement
@@ -4082,7 +4110,7 @@ parseYieldExpression: true
     }
 
     function parseParam(options) {
-        var token, rest, param, def, type, typeIdentifier;
+        var token, rest, param, def, typeIdentifier, returnTypeIdentifier;
 
         token = lookahead;
         if (token.value === '...') {
@@ -4112,9 +4140,21 @@ parseYieldExpression: true
             }
             //types for arguments
             if (match(':')) {
+                param.typeDeclaration = {};
                 lex();
-                typeIdentifier = parseVariableIdentifier();
-                type = {param: param.name, type: typeIdentifier.type, name: typeIdentifier.name };
+
+                if (match('(')) {
+                    //'recursively' parse parameters
+                    param.typeDeclaration.type = parseParams();
+                    expect('=>');
+                    returnTypeIdentifier = parseTypeIdentifier();
+                    param.typeDeclaration.returnType = returnTypeIdentifier;
+
+                } else {
+                    console.log(lookahead);
+                    typeIdentifier = parseTypeIdentifier();
+                    param.typeDeclaration = typeIdentifier;
+                }
             }
         }
 
@@ -4128,7 +4168,6 @@ parseYieldExpression: true
 
         options.params.push(param);
         options.defaults.push(def);
-        options.types.push(type);
         return !match(')');
     }
 
@@ -4139,7 +4178,6 @@ parseYieldExpression: true
             params: [],
             defaultCount: 0,
             defaults: [],
-            types: [],
             rest: null,
             firstRestricted: firstRestricted
         };
@@ -4224,7 +4262,7 @@ parseYieldExpression: true
         strict = previousStrict;
         state.yieldAllowed = previousYieldAllowed;
 
-        return delegate.createFunctionDeclaration(id, tmp.params, tmp.defaults, tmp.types, tmp.returnType, body, tmp.rest, generator, false);
+        return delegate.createFunctionDeclaration(id, tmp.params, tmp.defaults, tmp.returnType, body, tmp.rest, generator, false);
     }
 
     function parseFunctionExpression() {
@@ -4281,7 +4319,7 @@ parseYieldExpression: true
         strict = previousStrict;
         state.yieldAllowed = previousYieldAllowed;
 
-        return delegate.createFunctionExpression(id, tmp.params, tmp.defaults, tmp.types, tmp.returnType, body, tmp.rest, generator, false);
+        return delegate.createFunctionExpression(id, tmp.params, tmp.defaults, tmp.returnType, body, tmp.rest, generator, false);
     }
 
     function parseYieldExpression() {
