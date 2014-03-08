@@ -4172,7 +4172,7 @@ parseYieldExpression: true
 
                 } else {
                     typeIdentifier = parseTypeIdentifier();
-                    param.typeDeclaration = delegate.createTypeDeclaration(typeIdentifier);
+                    param.typeDeclaration = typeIdentifier;
                 }
             }
         }
