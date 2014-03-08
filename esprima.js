@@ -4218,7 +4218,7 @@ parseYieldExpression: true
         //recognise returntype of functions
         if (match(':')) {
             lex();
-            options.returnType = delegate.createReturnTypeDeclaration(parseTypeIdentifier());
+            options.returnType = delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
         }
 
         if (options.defaultCount === 0) {
