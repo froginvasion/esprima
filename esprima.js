@@ -145,6 +145,7 @@ parseYieldExpression: true
         ForStatement: 'ForStatement',
         FunctionDeclaration: 'FunctionDeclaration',
         FunctionExpression: 'FunctionExpression',
+        FunctionTypeDeclaration: 'FunctionTypeDeclaration',
         Identifier: 'Identifier',
         IfStatement: 'IfStatement',
         ImportDeclaration: 'ImportDeclaration',
@@ -161,6 +162,7 @@ parseYieldExpression: true
         Program: 'Program',
         Property: 'Property',
         ReturnStatement: 'ReturnStatement',
+        ReturnTypeDeclaration: 'ReturnTypeDeclaration',
         SequenceExpression: 'SequenceExpression',
         SpreadElement: 'SpreadElement',
         SwitchCase: 'SwitchCase',
@@ -180,6 +182,8 @@ parseYieldExpression: true
         WithStatement: 'WithStatement',
         YieldExpression: 'YieldExpression'
     };
+
+    
 
     PropertyKind = {
         Data: 1,
@@ -570,6 +574,8 @@ parseYieldExpression: true
 
         return id;
     }
+
+
 
     function getIdentifier() {
         var start, ch;
@@ -2023,6 +2029,21 @@ parseYieldExpression: true
                 type: Syntax.TypeDeclaration,
                 name: name
             };
+        },
+
+        createFunctionTypeDeclaration: function (exp, returnType) {
+            return {
+                type: Syntax.FunctionTypeDeclaration,
+                expression: exp,
+                returnType: returnType
+            };
+        },
+
+        createReturnTypeDeclaration: function (name) {
+            return {
+                type: Syntax.ReturnTypeDeclaration,
+                name: name
+            };
         }
 
 
@@ -3198,7 +3219,7 @@ parseYieldExpression: true
     function parseTypeIdentifier() {
         //either it is
         var token = lex();
-        if (token.type !== Token.Identifier && !matchKeyword("void") && !isTypeReservedWord(token.value)) {
+        if (token.type !== Token.Identifier && !matchKeyword('void') && !isTypeReservedWord(token.value)) {
             throwUnexpected(token);
         }
         return delegate.createTypeDeclaration(token.value);
@@ -4110,7 +4131,7 @@ parseYieldExpression: true
     }
 
     function parseParam(options) {
-        var token, rest, param, def, typeIdentifier, returnTypeIdentifier;
+        var token, rest, param, def, typeIdentifier, returnTypeIdentifier, parsedParams;
 
         token = lookahead;
         if (token.value === '...') {
@@ -4140,20 +4161,18 @@ parseYieldExpression: true
             }
             //types for arguments
             if (match(':')) {
-                param.typeDeclaration = {};
                 lex();
 
                 if (match('(')) {
                     //'recursively' parse parameters
-                    param.typeDeclaration.type = parseParams();
+                    parsedParams = parseParams();
                     expect('=>');
-                    returnTypeIdentifier = parseTypeIdentifier();
-                    param.typeDeclaration.returnType = returnTypeIdentifier;
+                    returnTypeIdentifier =  parseTypeIdentifier();
+                    param.typeDeclaration = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier);
 
                 } else {
-                    console.log(lookahead);
                     typeIdentifier = parseTypeIdentifier();
-                    param.typeDeclaration = typeIdentifier;
+                    param.typeDeclaration = delegate.createTypeDeclaration(typeIdentifier);
                 }
             }
         }
@@ -4199,7 +4218,7 @@ parseYieldExpression: true
         //recognise returntype of functions
         if (match(':')) {
             lex();
-            options.returnType = parseVariableIdentifier();
+            options.returnType = delegate.createReturnTypeDeclaration(parseTypeIdentifier());
         }
 
         if (options.defaultCount === 0) {
