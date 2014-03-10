@@ -150,6 +150,7 @@ parseYieldExpression: true
         IfStatement: 'IfStatement',
         ImportDeclaration: 'ImportDeclaration',
         ImportSpecifier: 'ImportSpecifier',
+        InterfaceDeclaration: 'InterfaceDeclaration',
         LabeledStatement: 'LabeledStatement',
         Literal: 'Literal',
         LogicalExpression: 'LogicalExpression',
@@ -159,6 +160,7 @@ parseYieldExpression: true
         NewExpression: 'NewExpression',
         ObjectExpression: 'ObjectExpression',
         ObjectPattern: 'ObjectPattern',
+        OptionalDeclaration: 'OptionalDeclaration',
         Program: 'Program',
         Property: 'Property',
         ReturnStatement: 'ReturnStatement',
@@ -183,7 +185,6 @@ parseYieldExpression: true
         YieldExpression: 'YieldExpression'
     };
 
-    
 
     PropertyKind = {
         Data: 1,
@@ -320,14 +321,14 @@ parseYieldExpression: true
 
     function isTypeReservedWord(id) {
         switch (id) {
-            case 'any':
-            case 'void':
-            case 'string':
-            case 'number':
-            case 'boolean':
-                return true;
-            default:
-                return false;
+        case 'any':
+        case 'void':
+        case 'string':
+        case 'number':
+        case 'boolean':
+            return true;
+        default:
+            return false;
         }
     }
 
@@ -399,6 +400,8 @@ parseYieldExpression: true
             return (id === 'default') || (id === 'finally') || (id === 'extends');
         case 8:
             return (id === 'function') || (id === 'continue') || (id === 'debugger');
+        case 9:
+            return (id === 'interface');
         case 10:
             return (id === 'instanceof');
         default:
@@ -2007,6 +2010,14 @@ parseYieldExpression: true
             };
         },
 
+        createInterfaceDeclaration: function (id, objectInitializer) {
+            return {
+                type: Syntax.InterfaceDeclaration,
+                name: id,
+                object: objectInitializer
+            };
+        },
+
         createYieldExpression: function (argument, delegate) {
             return {
                 type: Syntax.YieldExpression,
@@ -2024,12 +2035,14 @@ parseYieldExpression: true
             };
         },
 
-        createTypeDeclaration: function (name) {
+        createTypeDeclaration: function (name, optional) {
             return {
                 type: Syntax.TypeDeclaration,
-                name: name
+                name: name,
+                optional: optional
             };
         },
+
 
         createFunctionTypeDeclaration: function (exp, returnType) {
             return {
@@ -2242,6 +2255,15 @@ parseYieldExpression: true
         return isLeftHandSide(expr) || expr.type === Syntax.ObjectPattern || expr.type === Syntax.ArrayPattern;
     }
 
+    function parseTypeIdentifier(opt) {
+        //either it is
+        var token = lex();
+        if (token.type !== Token.Identifier && !matchKeyword('void') && !isTypeReservedWord(token.value)) {
+            throwUnexpected(token);
+        }
+        return delegate.createTypeDeclaration(token.value, opt);
+    }
+
     // 11.1.4 Array Initialiser
 
     function parseArrayInitialiser() {
@@ -2435,6 +2457,45 @@ parseYieldExpression: true
         }
         throwUnexpected(lex());
     }
+
+    function parseTypeObjectInitialiser() {
+        var id, members, type, types, returnType, result;
+
+        members = [];
+        expect('{');
+        while (!match('}')) {
+            result = {};
+            id = parseVariableIdentifier();
+            if (match('?')) {
+                id.optional = true;
+                lex();
+            }
+            result.key = id;
+            //deposit(acc: number) : void;
+            if (match('(')) {
+                type = parseParams();
+            //deposit: (acc: number) => void;
+            } else if (match(':')) {
+                lex();
+                if (match('(')) {
+                    type = parseParams();
+                    expect('=>');
+                    returnType = parseTypeIdentifier();
+                } else {
+                    type = parseTypeIdentifier();
+                }
+            }
+            result.value = {};
+            result.value.type = type;
+            result.value.returnType = returnType;
+            members.push(result);
+            expect(';');
+        }
+        expect('}');
+        return members;
+    }
+
+
 
     function parseObjectInitialiser() {
         var properties = [], property, name, key, kind, map = {}, toString = String;
@@ -3214,15 +3275,6 @@ parseYieldExpression: true
         expect('}');
 
         return delegate.createBlockStatement(block);
-    }
-
-    function parseTypeIdentifier() {
-        //either it is
-        var token = lex();
-        if (token.type !== Token.Identifier && !matchKeyword('void') && !isTypeReservedWord(token.value)) {
-            throwUnexpected(token);
-        }
-        return delegate.createTypeDeclaration(token.value);
     }
 
     // 12.2 Variable Statement
@@ -4131,8 +4183,9 @@ parseYieldExpression: true
     }
 
     function parseParam(options) {
-        var token, rest, param, def, typeIdentifier, returnTypeIdentifier, parsedParams;
+        var token, rest, param, opt, def, typeIdentifier, returnTypeIdentifier, parsedParams;
 
+        opt = false;
         token = lookahead;
         if (token.value === '...') {
             token = lex();
@@ -4159,6 +4212,12 @@ parseYieldExpression: true
                 def = parseAssignmentExpression();
                 ++options.defaultCount;
             }
+            //param could be optional
+            if (match('?')) {
+                opt = true;
+                lex();
+            }
+
             //types for arguments
             if (match(':')) {
                 lex();
@@ -4171,7 +4230,7 @@ parseYieldExpression: true
                     param.typeDeclaration = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier);
 
                 } else {
-                    typeIdentifier = parseTypeIdentifier();
+                    typeIdentifier = parseTypeIdentifier(opt);
                     param.typeDeclaration = typeIdentifier;
                 }
             }
@@ -4537,6 +4596,19 @@ parseYieldExpression: true
         return delegate.createClassDeclaration(id, superClass, parseClassBody());
     }
 
+    function parseInterfaceDeclaration() {
+        var id, object;
+        expectKeyword('interface');
+        id = parseVariableIdentifier();
+
+        if (!matchKeyword('extends')) {
+            object = parseTypeObjectInitialiser();
+        } else {
+            object = {};
+        }
+        return delegate.createInterfaceDeclaration(id, object);
+    }
+
     // 15 Program
 
     function matchModuleDeclaration() {
@@ -4560,6 +4632,8 @@ parseYieldExpression: true
                 return parseExportDeclaration();
             case 'import':
                 return parseImportDeclaration();
+            case 'interface':
+                return parseInterfaceDeclaration();
             default:
                 return parseStatement();
             }
