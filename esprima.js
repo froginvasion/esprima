@@ -2044,11 +2044,12 @@ parseYieldExpression: true
         },
 
 
-        createFunctionTypeDeclaration: function (exp, returnType) {
+        createFunctionTypeDeclaration: function (exp, returnType, optional) {
             return {
                 type: Syntax.FunctionTypeDeclaration,
                 expression: exp,
-                returnType: returnType
+                returnType: returnType,
+                optional: optional
             };
         },
 
@@ -4227,7 +4228,7 @@ parseYieldExpression: true
                     parsedParams = parseParams();
                     expect('=>');
                     returnTypeIdentifier =  parseTypeIdentifier();
-                    param.typeDeclaration = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier);
+                    param.typeDeclaration = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
 
                 } else {
                     typeIdentifier = parseTypeIdentifier(opt);
