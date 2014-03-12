@@ -5284,6 +5284,7 @@ parseYieldExpression: true
             extra.parseFunctionDeclaration = parseFunctionDeclaration;
             extra.parseFunctionExpression = parseFunctionExpression;
             extra.parseParams = parseParams;
+            extra.parseInterfaceDeclaration = parseInterfaceDeclaration;
             extra.parseImportDeclaration = parseImportDeclaration;
             extra.parseImportSpecifier = parseImportSpecifier;
             extra.parseModuleDeclaration = parseModuleDeclaration;
@@ -5327,6 +5328,7 @@ parseYieldExpression: true
             parseFunctionDeclaration = wrapTracking(extra.parseFunctionDeclaration);
             parseFunctionExpression = wrapTracking(extra.parseFunctionExpression);
             parseParams = wrapTracking(extra.parseParams);
+            parseInterfaceDeclaration = wrapTracking(extra.parseInterfaceDeclaration);
             parseImportDeclaration = wrapTracking(extra.parseImportDeclaration);
             parseImportSpecifier = wrapTracking(extra.parseImportSpecifier);
             parseModuleDeclaration = wrapTracking(extra.parseModuleDeclaration);
