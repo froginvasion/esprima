@@ -2481,14 +2481,14 @@ parseYieldExpression: true
                 if (match('(')) {
                     type = parseParams();
                     expect('=>');
-                    returnType = parseTypeIdentifier();
+                    type.returnType = parseTypeIdentifier();
+
                 } else {
                     type = parseTypeIdentifier();
                 }
             }
             result.value = {};
-            result.value.type = type;
-            result.value.returnType = returnType;
+            result.value.typeDeclaration = type;
             members.push(result);
             expect(';');
         }
