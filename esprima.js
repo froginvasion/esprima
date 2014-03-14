@@ -2475,6 +2475,7 @@ parseYieldExpression: true
             //deposit(acc: number) : void;
             if (match('(')) {
                 type = parseParams();
+                type.type = Syntax.FunctionTypeDeclaration;
             //deposit: (acc: number) => void;
             } else if (match(':')) {
                 lex();
@@ -2482,7 +2483,7 @@ parseYieldExpression: true
                     type = parseParams();
                     expect('=>');
                     type.returnType = parseTypeIdentifier();
-
+                    type.type = Syntax.FunctionTypeDeclaration;
                 } else {
                     type = parseTypeIdentifier();
                 }
