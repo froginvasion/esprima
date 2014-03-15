@@ -176,6 +176,7 @@ parseYieldExpression: true
         ThrowStatement: 'ThrowStatement',
         TryStatement: 'TryStatement',
         TypeDeclaration: 'TypeDeclaration',
+        TypedVariableDeclaration: 'TypedVariableDeclaration',
         UnaryExpression: 'UnaryExpression',
         UpdateExpression: 'UpdateExpression',
         VariableDeclaration: 'VariableDeclaration',
@@ -1875,6 +1876,15 @@ parseYieldExpression: true
             };
         },
 
+        createTypedVariableDeclarator: function (id, init, declaration) {
+            return {
+                type: Syntax.VariableDeclarator,
+                id: id,
+                typeDeclaration: declaration,
+                init: init
+            };
+        },
+
         createWhileStatement: function (test, body) {
             return {
                 type: Syntax.WhileStatement,
@@ -3293,7 +3303,10 @@ parseYieldExpression: true
 
     function parseVariableDeclaration(kind) {
         var id,
-            init = null;
+            init,
+            type,
+            types,
+            returnType = null;
         if (match('{')) {
             id = parseObjectInitialiser();
             reinterpretAsAssignmentBindingPattern(id);
@@ -3317,6 +3330,21 @@ parseYieldExpression: true
         } else if (match('=')) {
             lex();
             init = parseAssignmentExpression();
+        } else if (match(':')) {
+            expect(':');
+            if (match('(')) {
+                types = parseParams();
+                expect('=>');
+                returnType = parseTypeIdentifier();
+                type = delegate.createFunctionTypeDeclaration(types, returnType, false);
+            } else {
+                type = parseTypeIdentifier();
+            }
+            if (match('=')) {
+                lex();
+                init = parseAssignmentExpression();
+            }
+            return delegate.createTypedVariableDeclarator(id, init, type);
         }
 
         return delegate.createVariableDeclarator(id, init);
@@ -4184,6 +4212,22 @@ parseYieldExpression: true
         options.paramSet[key] = true;
     }
 
+    function parseTypeDeclaration(param, opt) {
+        var parsedParams, returnTypeIdentifier, typeIdentifier;
+        expect(':');
+        if (match('(')) {
+            //'recursively' parse parameters
+            parsedParams = parseParams();
+            expect('=>');
+            returnTypeIdentifier =  parseTypeIdentifier();
+            param.typeDeclaration = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
+
+        } else {
+            typeIdentifier = parseTypeIdentifier(opt);
+            param.typeDeclaration = typeIdentifier;
+        }
+    }
+
     function parseParam(options) {
         var token, rest, param, opt, def, typeIdentifier, returnTypeIdentifier, parsedParams;
 
@@ -4222,19 +4266,7 @@ parseYieldExpression: true
 
             //types for arguments
             if (match(':')) {
-                lex();
-
-                if (match('(')) {
-                    //'recursively' parse parameters
-                    parsedParams = parseParams();
-                    expect('=>');
-                    returnTypeIdentifier =  parseTypeIdentifier();
-                    param.typeDeclaration = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
-
-                } else {
-                    typeIdentifier = parseTypeIdentifier(opt);
-                    param.typeDeclaration = typeIdentifier;
-                }
+                parseTypeDeclaration(param, opt);
             }
         }
 
@@ -5302,6 +5334,9 @@ parseYieldExpression: true
             extra.parseSpreadOrAssignmentExpression = parseSpreadOrAssignmentExpression;
             extra.parseTemplateElement = parseTemplateElement;
             extra.parseTemplateLiteral = parseTemplateLiteral;
+            extra.parseTypeIdentifier = parseTypeIdentifier;
+            extra.parseTypeDeclaration = parseTypeDeclaration;
+            extra.parseTypeObjectInitialiser = parseTypeObjectInitialiser;
             extra.parseStatement = parseStatement;
             extra.parseSwitchCase = parseSwitchCase;
             extra.parseUnaryExpression = parseUnaryExpression;
@@ -5346,6 +5381,10 @@ parseYieldExpression: true
             parsePropertyFunction = wrapTracking(extra.parsePropertyFunction);
             parseTemplateElement = wrapTracking(extra.parseTemplateElement);
             parseTemplateLiteral = wrapTracking(extra.parseTemplateLiteral);
+            //todo: this one can't be wrapped because it conflicts with other methods being tracked! solution = ??
+            //parseTypeDeclaration = wrapTracking(extra.parseTypeDeclaration);
+            parseTypeIdentifier = wrapTracking(extra.parseTypeIdentifier);
+            parseTypeObjectInitialiser = wrapTracking(extra.parseTypeObjectInitialiser);
             parseSpreadOrAssignmentExpression = wrapTracking(extra.parseSpreadOrAssignmentExpression);
             parseStatement = wrapTracking(extra.parseStatement);
             parseSwitchCase = wrapTracking(extra.parseSwitchCase);
@@ -5407,6 +5446,9 @@ parseYieldExpression: true
             parsePropertyFunction = extra.parsePropertyFunction;
             parseTemplateElement = extra.parseTemplateElement;
             parseTemplateLiteral = extra.parseTemplateLiteral;
+            parseTypeDeclaration = extra.parseTypeDeclaration;
+            parseTypeIdentifier  = extra.parseTypeIdentifier;
+            parseTypeObjectInitialiser = extra.parseTypeObjectInitialiser;
             parseSpreadOrAssignmentExpression = extra.parseSpreadOrAssignmentExpression;
             parseStatement = extra.parseStatement;
             parseSwitchCase = extra.parseSwitchCase;
