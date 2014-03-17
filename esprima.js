@@ -3206,6 +3206,21 @@ parseYieldExpression: true
         return expr;
     }
 
+    function parseTypeDeclaration(opt) {
+        var parsedParams, returnTypeIdentifier, result;
+        expect(':');
+        if (match('(')) {
+            //'recursively' parse parameters
+            parsedParams = parseParams();
+            expect('=>');
+            returnTypeIdentifier = parseTypeIdentifier();
+            result = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
+        } else {
+            result = parseTypeIdentifier(opt);
+        }
+        return result;
+    }
+
     // 11.14 Comma Operator
 
     function parseExpression() {
@@ -3331,7 +3346,7 @@ parseYieldExpression: true
             lex();
             init = parseAssignmentExpression();
         } else if (match(':')) {
-            expect(':');
+            /*expect(':');
             if (match('(')) {
                 types = parseParams();
                 expect('=>');
@@ -3339,7 +3354,9 @@ parseYieldExpression: true
                 type = delegate.createFunctionTypeDeclaration(types, returnType, false);
             } else {
                 type = parseTypeIdentifier();
-            }
+            }*/
+            //they are always false!
+            type = parseTypeDeclaration(false);
             if (match('=')) {
                 lex();
                 init = parseAssignmentExpression();
@@ -4212,22 +4229,6 @@ parseYieldExpression: true
         options.paramSet[key] = true;
     }
 
-    function parseTypeDeclaration(param, opt) {
-        var parsedParams, returnTypeIdentifier, typeIdentifier;
-        expect(':');
-        if (match('(')) {
-            //'recursively' parse parameters
-            parsedParams = parseParams();
-            expect('=>');
-            returnTypeIdentifier =  parseTypeIdentifier();
-            param.typeDeclaration = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
-
-        } else {
-            typeIdentifier = parseTypeIdentifier(opt);
-            param.typeDeclaration = typeIdentifier;
-        }
-    }
-
     function parseParam(options) {
         var token, rest, param, opt, def, typeIdentifier, returnTypeIdentifier, parsedParams;
 
@@ -4266,7 +4267,7 @@ parseYieldExpression: true
 
             //types for arguments
             if (match(':')) {
-                parseTypeDeclaration(param, opt);
+                param.typeDeclaration = parseTypeDeclaration(opt);
             }
         }
 
@@ -5334,7 +5335,7 @@ parseYieldExpression: true
             extra.parseSpreadOrAssignmentExpression = parseSpreadOrAssignmentExpression;
             extra.parseTemplateElement = parseTemplateElement;
             extra.parseTemplateLiteral = parseTemplateLiteral;
-            extra.parseTypeIdentifier = parseTypeIdentifier;
+            //extra.parseTypeIdentifier = parseTypeIdentifier;
             extra.parseTypeDeclaration = parseTypeDeclaration;
             extra.parseTypeObjectInitialiser = parseTypeObjectInitialiser;
             extra.parseStatement = parseStatement;
@@ -5382,8 +5383,8 @@ parseYieldExpression: true
             parseTemplateElement = wrapTracking(extra.parseTemplateElement);
             parseTemplateLiteral = wrapTracking(extra.parseTemplateLiteral);
             //todo: this one can't be wrapped because it conflicts with other methods being tracked! solution = ??
-            //parseTypeDeclaration = wrapTracking(extra.parseTypeDeclaration);
-            parseTypeIdentifier = wrapTracking(extra.parseTypeIdentifier);
+            parseTypeDeclaration = wrapTracking(extra.parseTypeDeclaration);
+            //parseTypeIdentifier = wrapTracking(extra.parseTypeIdentifier);
             parseTypeObjectInitialiser = wrapTracking(extra.parseTypeObjectInitialiser);
             parseSpreadOrAssignmentExpression = wrapTracking(extra.parseSpreadOrAssignmentExpression);
             parseStatement = wrapTracking(extra.parseStatement);
@@ -5447,7 +5448,7 @@ parseYieldExpression: true
             parseTemplateElement = extra.parseTemplateElement;
             parseTemplateLiteral = extra.parseTemplateLiteral;
             parseTypeDeclaration = extra.parseTypeDeclaration;
-            parseTypeIdentifier  = extra.parseTypeIdentifier;
+            //parseTypeIdentifier  = extra.parseTypeIdentifier;
             parseTypeObjectInitialiser = extra.parseTypeObjectInitialiser;
             parseSpreadOrAssignmentExpression = extra.parseSpreadOrAssignmentExpression;
             parseStatement = extra.parseStatement;
