@@ -2484,8 +2484,10 @@ parseYieldExpression: true
             result.key = id;
             //deposit(acc: number) : void;
             if (match('(')) {
-                type = parseParams();
-                type.type = Syntax.FunctionTypeDeclaration;
+                types = parseParams();
+                type = delegate.createFunctionTypeDeclaration(types, types.returnType, id.optional);
+                delete types.returnType;
+                //type.type = Syntax.FunctionTypeDeclaration;
             //deposit: (acc: number) => void;
             } else if (match(':')) {
                 type = parseTypeDeclaration(id.optional);
