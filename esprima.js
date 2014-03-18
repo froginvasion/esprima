@@ -3212,8 +3212,7 @@ parseYieldExpression: true
         if (match('(')) {
             //'recursively' parse parameters
             parsedParams = parseParams();
-            expect('=>');
-            returnTypeIdentifier = parseTypeIdentifier();
+            returnTypeIdentifier = parseFunctionReturnType();
             result = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
         } else {
             result = parseTypeIdentifier(opt);
@@ -4229,6 +4228,15 @@ parseYieldExpression: true
         options.paramSet[key] = true;
     }
 
+    function parseFunctionReturnType() {
+        if (match(':')) {
+            expect(':');
+        } else if (match('=>')) {
+            expect('=>');
+        }
+        return delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
+    }
+
     function parseParam(options) {
         var token, rest, param, opt, def, typeIdentifier, returnTypeIdentifier, parsedParams;
 
@@ -4311,8 +4319,7 @@ parseYieldExpression: true
 
         //recognise returntype of functions
         if (match(':')) {
-            lex();
-            options.returnType = delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
+            options.returnType = parseFunctionReturnType();
         }
 
         if (options.defaultCount === 0) {
@@ -5317,6 +5324,7 @@ parseYieldExpression: true
             extra.parseForVariableDeclaration = parseForVariableDeclaration;
             extra.parseFunctionDeclaration = parseFunctionDeclaration;
             extra.parseFunctionExpression = parseFunctionExpression;
+            extra.parseFunctionReturnType = parseFunctionReturnType;
             extra.parseParams = parseParams;
             extra.parseInterfaceDeclaration = parseInterfaceDeclaration;
             extra.parseImportDeclaration = parseImportDeclaration;
@@ -5364,6 +5372,7 @@ parseYieldExpression: true
             parseForVariableDeclaration = wrapTracking(extra.parseForVariableDeclaration);
             parseFunctionDeclaration = wrapTracking(extra.parseFunctionDeclaration);
             parseFunctionExpression = wrapTracking(extra.parseFunctionExpression);
+            parseFunctionReturnType = wrapTracking(extra.parseFunctionReturnType);
             parseParams = wrapTracking(extra.parseParams);
             parseInterfaceDeclaration = wrapTracking(extra.parseInterfaceDeclaration);
             parseImportDeclaration = wrapTracking(extra.parseImportDeclaration);
@@ -5429,6 +5438,7 @@ parseYieldExpression: true
             parseForVariableDeclaration = extra.parseForVariableDeclaration;
             parseFunctionDeclaration = extra.parseFunctionDeclaration;
             parseFunctionExpression = extra.parseFunctionExpression;
+            parseFunctionReturnType = extra.parseFunctionReturnType;
             parseImportDeclaration = extra.parseImportDeclaration;
             parseImportSpecifier = extra.parseImportSpecifier;
             parseGroupExpression = extra.parseGroupExpression;
