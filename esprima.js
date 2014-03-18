@@ -2488,15 +2488,7 @@ parseYieldExpression: true
                 type.type = Syntax.FunctionTypeDeclaration;
             //deposit: (acc: number) => void;
             } else if (match(':')) {
-                lex();
-                if (match('(')) {
-                    type = parseParams();
-                    expect('=>');
-                    type.returnType = parseTypeIdentifier();
-                    type.type = Syntax.FunctionTypeDeclaration;
-                } else {
-                    type = parseTypeIdentifier();
-                }
+                type = parseTypeDeclaration(id.optional);
             }
             result.value = {};
             result.value.typeDeclaration = type;
@@ -3204,6 +3196,15 @@ parseYieldExpression: true
         }
 
         return expr;
+    }
+
+    function parseFunctionReturnType() {
+        if (match(':')) {
+            expect(':');
+        } else if (match('=>')) {
+            expect('=>');
+        }
+        return delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
     }
 
     function parseTypeDeclaration(opt) {
@@ -4228,14 +4229,6 @@ parseYieldExpression: true
         options.paramSet[key] = true;
     }
 
-    function parseFunctionReturnType() {
-        if (match(':')) {
-            expect(':');
-        } else if (match('=>')) {
-            expect('=>');
-        }
-        return delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
-    }
 
     function parseParam(options) {
         var token, rest, param, opt, def, typeIdentifier, returnTypeIdentifier, parsedParams;
