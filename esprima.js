@@ -116,6 +116,9 @@ parseYieldExpression: true
                     '<=', '<', '>', '!=', '!=='];
 
     Syntax = {
+        AmbientDeclaration: 'AmbientDeclaration',
+        AmbientVariableDeclaration : 'AmbientVariableDeclaration',
+        AmbientFunctionDeclaration : 'AmbientFunctionDeclaration',
         ArrayExpression: 'ArrayExpression',
         ArrayPattern: 'ArrayPattern',
         ArrowFunctionExpression: 'ArrowFunctionExpression',
@@ -243,6 +246,7 @@ parseYieldExpression: true
         StrictLHSPostfix:  'Postfix increment/decrement may not have eval or arguments operand in strict mode',
         StrictLHSPrefix:  'Prefix increment/decrement may not have eval or arguments operand in strict mode',
         StrictReservedWord:  'Use of future reserved word in strict mode',
+        TokenExpected: 'Expected token %0',
         NewlineAfterModule:  'Illegal newline after module',
         NoFromAfterImport: 'Missing from after import',
         InvalidModuleSpecifier: 'Invalid module specifier',
@@ -396,9 +400,11 @@ parseYieldExpression: true
                 (id === 'class') || (id === 'super');
         case 6:
             return (id === 'return') || (id === 'typeof') || (id === 'delete') ||
-                (id === 'switch') || (id === 'export') || (id === 'import');
+                (id === 'switch') || (id === 'export') || (id === 'import') ||
+                (id === 'module');
         case 7:
-            return (id === 'default') || (id === 'finally') || (id === 'extends');
+            return (id === 'default') || (id === 'finally') || (id === 'extends') ||
+                (id === 'declare');
         case 8:
             return (id === 'function') || (id === 'continue') || (id === 'debugger');
         case 9:
@@ -1551,6 +1557,13 @@ parseYieldExpression: true
             return node;
         },
 
+        createAmbientDeclaration: function (type, declaration) {
+            return {
+                type: type,
+                declaration: declaration
+            };
+        },
+
         createArrayExpression: function (elements) {
             return {
                 type: Syntax.ArrayExpression,
@@ -2490,6 +2503,7 @@ parseYieldExpression: true
                 //type.type = Syntax.FunctionTypeDeclaration;
             //deposit: (acc: number) => void;
             } else if (match(':')) {
+                lex();
                 type = parseTypeDeclaration(id.optional);
             }
             result.value = {};
@@ -3201,21 +3215,23 @@ parseYieldExpression: true
     }
 
     function parseFunctionReturnType() {
-        if (match(':')) {
-            expect(':');
-        } else if (match('=>')) {
-            expect('=>');
-        }
         return delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
     }
 
-    function parseTypeDeclaration(opt) {
+    function parseTypeDeclaration(opt, arrowStyle) {
         var parsedParams, returnTypeIdentifier, result;
-        expect(':');
+
         if (match('(')) {
             //'recursively' parse parameters
-            parsedParams = parseParams();
-            returnTypeIdentifier = parseFunctionReturnType();
+            parsedParams = parseParams(null, arrowStyle);
+            if (typeof arrowStyle !== 'undefined' && arrowStyle) {
+                //expect('=>');
+            } else {
+                //expect(':');
+            }
+            if (typeof parsedParams.returnType !== 'undefined') {
+                returnTypeIdentifier = parsedParams.returnType;
+            }
             result = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
         } else {
             result = parseTypeIdentifier(opt);
@@ -3358,7 +3374,8 @@ parseYieldExpression: true
                 type = parseTypeIdentifier();
             }*/
             //they are always false!
-            type = parseTypeDeclaration(false);
+            lex();
+            type = parseTypeDeclaration(false, true);
             if (match('=')) {
                 lex();
                 init = parseAssignmentExpression();
@@ -4270,7 +4287,8 @@ parseYieldExpression: true
 
             //types for arguments
             if (match(':')) {
-                param.typeDeclaration = parseTypeDeclaration(opt);
+                lex();
+                param.typeDeclaration = parseTypeDeclaration(opt, true);
             }
         }
 
@@ -4287,7 +4305,7 @@ parseYieldExpression: true
         return !match(')');
     }
 
-    function parseParams(firstRestricted) {
+    function parseParams(firstRestricted, arrowStyle) {
         var options, type;
 
         options = {
@@ -4313,8 +4331,17 @@ parseYieldExpression: true
         expect(')');
 
         //recognise returntype of functions
-        if (match(':')) {
-            options.returnType = parseFunctionReturnType();
+        if (typeof arrowStyle !== 'undefined' && arrowStyle) {
+            var returnType;
+            if (match('=>')) {
+                lex();
+                options.returnType = parseFunctionReturnType();
+            }
+        } else {
+            if (match(':')) {
+                lex();
+                options.returnType = parseFunctionReturnType();
+            }
         }
 
         if (options.defaultCount === 0) {
@@ -4657,6 +4684,65 @@ parseYieldExpression: true
         return false;
     }
 
+    function parseAmbientVariableDeclaration() {
+        var identifier, type;
+        expectKeyword('var');
+        identifier = parseVariableIdentifier();
+        if (match(';')) {
+            expect(';');
+        } else if (!match(':')) {
+            throwError({}, Messages.TokenExpected, ':');
+        } else {
+            expect(':');
+            type = parseTypeDeclaration(false, true);
+            return delegate.createAmbientDeclaration(Syntax.AmbientVariableDeclaration, type);
+        }
+
+    }
+
+    function parseAmbientFunctionDeclaration() {
+        var identifier, type;
+        expectKeyword('function');
+        identifier = parseVariableIdentifier();
+        if (match(';')) {
+            lex();
+        } else if (!match('(')) {
+            throwError({}, Messages.TokenExpected, '(');
+        } else {
+            type = parseTypeDeclaration(false, false);
+            return delegate.createAmbientDeclaration(Syntax.AmbientFunctionDeclaration, type);
+        }
+
+    }
+
+    function parseAmbientClassDeclaration() {
+        expectKeyword('class');
+    }
+
+    function parseAmbientModuleDeclaration() {
+        expectKeyword('module');
+    }
+
+    function parseAmbientDeclaration() {
+        expectKeyword('declare');
+
+        if (matchKeyword("var")) {
+            return parseAmbientVariableDeclaration();
+        } else if (matchKeyword("function")) {
+            return parseAmbientFunctionDeclaration();
+        } else if (matchKeyword("class")) {
+            parseAmbientClassDeclaration();
+        } else if (matchKeyword("enum")) {
+            //not supported
+        } else if (matchKeyword("module")) {
+            parseAmbientModuleDeclaration();
+        }
+        if (match(';')) {
+            lex();
+        }
+        //return delegate.createAmbientDeclaration();
+    }
+
     function parseSourceElement() {
         if (lookahead.type === Token.Keyword) {
             switch (lookahead.value) {
@@ -4671,6 +4757,8 @@ parseYieldExpression: true
                 return parseImportDeclaration();
             case 'interface':
                 return parseInterfaceDeclaration();
+            case 'declare':
+                return parseAmbientDeclaration();
             default:
                 return parseStatement();
             }
