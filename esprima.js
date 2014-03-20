@@ -3220,9 +3220,14 @@ parseYieldExpression: true
     }
 
     function parseTypeDeclaration(opt, arrowStyle, expectedToken) {
-        var parsedParams, returnTypeIdentifier, result;
+        var parsedParams, returnTypeIdentifier, result, i, token;
 
-        if (typeof expectedToken !== 'undefined') {
+        if (Array.isArray(expectedToken)) {
+            for (i = 0; i < expectedToken.length; i++) {
+                token = expectedToken[i];
+                expect(token);
+            }
+        } else if (typeof expectedToken !== 'undefined') {
             expect(expectedToken);
         }
         if (match('(')) {
@@ -4253,9 +4258,8 @@ parseYieldExpression: true
 
 
     function parseParam(options) {
-        var token, rest, param, opt, def, typeIdentifier, returnTypeIdentifier, parsedParams;
-
-        opt = false;
+        var token, rest, param, opt, def, typeIdentifier, returnTypeIdentifier, parsedParams, expectedTokens;
+        expectedTokens = [];
         token = lookahead;
         if (token.value === '...') {
             token = lex();
@@ -4284,13 +4288,14 @@ parseYieldExpression: true
             }
             //param could be optional
             if (match('?')) {
+                expectedTokens = ['?'];
                 opt = true;
-                lex();
             }
 
             //types for arguments
-            if (match(':')) {
-                param.typeDeclaration = parseTypeDeclaration(opt, true, ':');
+            if (match('?') || match(':')) {
+                expectedTokens.push(':');
+                param.typeDeclaration = parseTypeDeclaration(opt, true, ['?', ':']);
             }
         }
 
