@@ -2076,6 +2076,7 @@ parseYieldExpression: true
             };
         },
 
+        //@deprecated
         createReturnTypeDeclaration: function (name) {
             return {
                 type: Syntax.ReturnTypeDeclaration,
@@ -3213,6 +3214,7 @@ parseYieldExpression: true
         return expr;
     }
 
+    //@deprecated
     function parseFunctionReturnType() {
         return delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
     }
@@ -4330,17 +4332,18 @@ parseYieldExpression: true
 
         expect(')');
 
+        var returnType;
         //recognise returntype of functions
         if (typeof arrowStyle !== 'undefined' && arrowStyle) {
-            var returnType;
+
             if (match('=>')) {
-                lex();
-                options.returnType = parseFunctionReturnType();
+                returnType = parseTypeDeclaration(false, arrowStyle, '=>');
+                options.returnType = returnType;
             }
         } else {
             if (match(':')) {
-                lex();
-                options.returnType = parseFunctionReturnType();
+                returnType = parseTypeDeclaration(false, arrowStyle, ':');
+                options.returnType = returnType;
             }
         }
 
