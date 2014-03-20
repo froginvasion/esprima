@@ -4295,7 +4295,7 @@ parseYieldExpression: true
             //types for arguments
             if (match('?') || match(':')) {
                 expectedTokens.push(':');
-                param.typeDeclaration = parseTypeDeclaration(opt, true, ['?', ':']);
+                param.typeDeclaration = parseTypeDeclaration(opt, true, expectedTokens);
             }
         }
 
