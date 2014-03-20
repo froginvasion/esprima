@@ -2503,8 +2503,7 @@ parseYieldExpression: true
                 //type.type = Syntax.FunctionTypeDeclaration;
             //deposit: (acc: number) => void;
             } else if (match(':')) {
-                lex();
-                type = parseTypeDeclaration(id.optional);
+                type = parseTypeDeclaration(id.optional, null, ':');
             }
             result.value = {};
             result.value.typeDeclaration = type;
@@ -3218,9 +3217,12 @@ parseYieldExpression: true
         return delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
     }
 
-    function parseTypeDeclaration(opt, arrowStyle) {
+    function parseTypeDeclaration(opt, arrowStyle, expectedToken) {
         var parsedParams, returnTypeIdentifier, result;
 
+        if (typeof expectedToken !== 'undefined') {
+            expect(expectedToken);
+        }
         if (match('(')) {
             //'recursively' parse parameters
             parsedParams = parseParams(null, arrowStyle);
@@ -3374,8 +3376,7 @@ parseYieldExpression: true
                 type = parseTypeIdentifier();
             }*/
             //they are always false!
-            lex();
-            type = parseTypeDeclaration(false, true);
+            type = parseTypeDeclaration(false, true, ':');
             if (match('=')) {
                 lex();
                 init = parseAssignmentExpression();
@@ -4287,8 +4288,7 @@ parseYieldExpression: true
 
             //types for arguments
             if (match(':')) {
-                lex();
-                param.typeDeclaration = parseTypeDeclaration(opt, true);
+                param.typeDeclaration = parseTypeDeclaration(opt, true, ':');
             }
         }
 
@@ -4693,8 +4693,7 @@ parseYieldExpression: true
         } else if (!match(':')) {
             throwError({}, Messages.TokenExpected, ':');
         } else {
-            expect(':');
-            type = parseTypeDeclaration(false, true);
+            type = parseTypeDeclaration(false, true, ':');
             return delegate.createAmbientDeclaration(Syntax.AmbientVariableDeclaration, type);
         }
 
