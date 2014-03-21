@@ -162,6 +162,7 @@ parseYieldExpression: true
         ModuleDeclaration: 'ModuleDeclaration',
         NewExpression: 'NewExpression',
         ObjectExpression: 'ObjectExpression',
+        ObjectTypeDeclaration: 'ObjectTypeDeclaration',
         ObjectPattern: 'ObjectPattern',
         OptionalDeclaration: 'OptionalDeclaration',
         Program: 'Program',
@@ -2067,6 +2068,14 @@ parseYieldExpression: true
             };
         },
 
+        createObjectTypeDeclaration: function (obj, optional) {
+            return {
+                type: Syntax.ObjectTypeDeclaration,
+                object: obj,
+                optional: optional
+            };
+        },
+
 
         createFunctionTypeDeclaration: function (exp, returnType, optional) {
             return {
@@ -2484,33 +2493,58 @@ parseYieldExpression: true
         throwUnexpected(lex());
     }
 
-    function parseTypeObjectInitialiser() {
-        var id, members, type, types, returnType, result;
+    function parseTypePair() {
+        var id, opt, result, expectedTokens, type, types, lh2;
+        expectedTokens = [];
+        opt = false;
+        result = {};
+        id = parseVariableIdentifier();
+        if (match('?')) {
+            id.optional = true;
+            opt = true;
+            expectedTokens.push('?');
+        }
 
+        result.key = id;
+        lh2 = lookahead2();
+        if ((lh2.type === Token.Punctuator && lh2.value === '(') || match('(')) {
+            types = parseTypeDeclaration(id.optional, null, expectedTokens);
+            delete types.returnType;
+        } else if ((lh2.type === Token.Punctuator && lh2.value === ':') || match(':')) {
+            expectedTokens.push(':');
+            types = parseTypeDeclaration(id.optional, null, expectedTokens);
+        } else {
+        }
+        result.value = {};
+        result.value.typeDeclaration = types;
+        return result;
+    }
+
+    function parseTypeObjectInitialiser(opt) {
+        var id, members, type, types, returnType, result;
+        if (typeof opt === 'undefined') {
+            opt = {};
+        }
+        if (typeof opt.required === 'undefined') {
+            opt.required = false;
+        }
+        if (typeof opt.delimiter === 'undefined') {
+            opt.delimiter = ";";
+        }
         members = [];
         expect('{');
         while (!match('}')) {
-            result = {};
-            id = parseVariableIdentifier();
-            if (match('?')) {
-                id.optional = true;
-                lex();
-            }
-            result.key = id;
-            //deposit(acc: number) : void;
-            if (match('(')) {
-                types = parseParams();
-                type = delegate.createFunctionTypeDeclaration(types, types.returnType, id.optional);
-                delete types.returnType;
-                //type.type = Syntax.FunctionTypeDeclaration;
-            //deposit: (acc: number) => void;
-            } else if (match(':')) {
-                type = parseTypeDeclaration(id.optional, null, ':');
-            }
-            result.value = {};
-            result.value.typeDeclaration = type;
+            result = parseTypePair();
             members.push(result);
-            expect(';');
+            if (opt.required) {
+                if (!match('}')) { 
+                    expect(opt.delimiter);
+                }
+            } else {
+                if (match(opt.delimiter)) {
+                    lex();
+                }
+            }
         }
         expect('}');
         return members;
@@ -3221,7 +3255,7 @@ parseYieldExpression: true
     }
 
     function parseTypeDeclaration(opt, arrowStyle, expectedToken) {
-        var parsedParams, returnTypeIdentifier, result, i, token;
+        var parsedParams, returnTypeIdentifier, result, i, token, options;
 
         if (Array.isArray(expectedToken)) {
             for (i = 0; i < expectedToken.length; i++) {
@@ -3234,15 +3268,16 @@ parseYieldExpression: true
         if (match('(')) {
             //'recursively' parse parameters
             parsedParams = parseParams(null, arrowStyle);
-            if (typeof arrowStyle !== 'undefined' && arrowStyle) {
-                //expect('=>');
-            } else {
-                //expect(':');
-            }
             if (typeof parsedParams.returnType !== 'undefined') {
                 returnTypeIdentifier = parsedParams.returnType;
             }
             result = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
+        } else if (match('{')) {
+            options = {};
+            options.delimiter = ',';
+            options.required = true
+            result = parseTypeObjectInitialiser(options);
+            result = delegate.createObjectTypeDeclaration(result, opt);
         } else {
             result = parseTypeIdentifier(opt);
         }
