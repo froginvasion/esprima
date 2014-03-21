@@ -5398,6 +5398,7 @@ parseYieldExpression: true
 
             wrapTracking = wrapTrackingFunction(extra.range, extra.loc);
 
+            extra.parseAmbientDeclaration = parseAmbientDeclaration;
             extra.parseArrayInitialiser = parseArrayInitialiser;
             extra.parseAssignmentExpression = parseAssignmentExpression;
             extra.parseBinaryExpression = parseBinaryExpression;
@@ -5446,6 +5447,7 @@ parseYieldExpression: true
             extra.parseClassExpression = parseClassExpression;
             extra.parseClassBody = parseClassBody;
 
+            parseAmbientDeclaration = wrapTracking(extra.parseAmbientDeclaration);
             parseArrayInitialiser = wrapTracking(extra.parseArrayInitialiser);
             parseAssignmentExpression = wrapTracking(extra.parseAssignmentExpression);
             parseBinaryExpression = wrapTracking(extra.parseBinaryExpression);
@@ -5512,6 +5514,7 @@ parseYieldExpression: true
         }
 
         if (extra.range || extra.loc) {
+            parseAmbientDeclaration = extra.parseAmbientDeclaration;
             parseArrayInitialiser = extra.parseArrayInitialiser;
             parseAssignmentExpression = extra.parseAssignmentExpression;
             parseBinaryExpression = extra.parseBinaryExpression;
