@@ -4717,9 +4717,8 @@ parseYieldExpression: true
             throwError({}, Messages.TokenExpected, '(');
         } else {
             type = parseTypeDeclaration(false, false);
-            return delegate.createAmbientDeclaration(Syntax.AmbientFunctionDeclaration, type);
         }
-
+        return delegate.createAmbientDeclaration(Syntax.AmbientFunctionDeclaration, identifier, type);
     }
 
     function parseAmbientClassDeclaration() {
