@@ -1557,9 +1557,10 @@ parseYieldExpression: true
             return node;
         },
 
-        createAmbientDeclaration: function (type, declaration) {
+        createAmbientDeclaration: function (type, identifier, declaration) {
             return {
                 type: type,
+                id: identifier,
                 declaration: declaration
             };
         },
@@ -4697,14 +4698,13 @@ parseYieldExpression: true
         expectKeyword('var');
         identifier = parseVariableIdentifier();
         if (match(';')) {
-            expect(';');
+            lex();
         } else if (!match(':')) {
             throwError({}, Messages.TokenExpected, ':');
         } else {
             type = parseTypeDeclaration(false, true, ':');
-            return delegate.createAmbientDeclaration(Syntax.AmbientVariableDeclaration, type);
         }
-
+        return delegate.createAmbientDeclaration(Syntax.AmbientVariableDeclaration, identifier, type);
     }
 
     function parseAmbientFunctionDeclaration() {
