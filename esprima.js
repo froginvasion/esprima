@@ -2499,22 +2499,27 @@ parseYieldExpression: true
         opt = false;
         result = {};
         id = parseVariableIdentifier();
+        result.key = id;
         if (match('?')) {
             id.optional = true;
             opt = true;
             expectedTokens.push('?');
         }
-
-        result.key = id;
         lh2 = lookahead2();
-        if ((lh2.type === Token.Punctuator && lh2.value === '(') || match('(')) {
+        /* Either it is optional and the next one is '(', or it is non optional
+         * and the next one matches '(' 
+         * this construct is needed to differentiate and exactly know which
+         * construct is meant by the user.
+         */
+        if ((opt && lh2.type === Token.Punctuator && lh2.value === '(') || !opt && match('(')) {
             types = parseTypeDeclaration(id.optional, null, expectedTokens);
             delete types.returnType;
-        } else if ((lh2.type === Token.Punctuator && lh2.value === ':') || match(':')) {
+        } else if ((opt && lh2.type === Token.Punctuator && lh2.value === ":") || !opt && match(':')) {
             expectedTokens.push(':');
-            types = parseTypeDeclaration(id.optional, null, expectedTokens);
+            types = parseTypeDeclaration(id.optional, true, expectedTokens);
         } else {
-        }
+
+        } 
         result.value = {};
         result.value.typeDeclaration = types;
         return result;
@@ -2522,6 +2527,7 @@ parseYieldExpression: true
 
     function parseTypeObjectInitialiser(opt) {
         var id, members, type, types, returnType, result;
+        /* guards */
         if (typeof opt === 'undefined') {
             opt = {};
         }
@@ -2531,6 +2537,7 @@ parseYieldExpression: true
         if (typeof opt.delimiter === 'undefined') {
             opt.delimiter = ";";
         }
+        /* init */
         members = [];
         expect('{');
         while (!match('}')) {
@@ -3254,6 +3261,9 @@ parseYieldExpression: true
         return delegate.createReturnTypeDeclaration(parseTypeIdentifier().name);
     }
 
+    /* This allows to recognise different styles of notating functions:
+     * for instance: a: ()=>void is a():void;
+     */
     function parseTypeDeclaration(opt, arrowStyle, expectedToken) {
         var parsedParams, returnTypeIdentifier, result, i, token, options;
 
@@ -3274,8 +3284,8 @@ parseYieldExpression: true
             result = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
         } else if (match('{')) {
             options = {};
-            options.delimiter = ',';
-            options.required = true
+            options.delimiter = ';';
+            options.required = true;
             result = parseTypeObjectInitialiser(options);
             result = delegate.createObjectTypeDeclaration(result, opt);
         } else {
@@ -4705,12 +4715,15 @@ parseYieldExpression: true
     }
 
     function parseInterfaceDeclaration() {
-        var id, object;
+        var id, object, opt;
         expectKeyword('interface');
         id = parseVariableIdentifier();
+        opt = {};
+        opt.required = true;
+        opt.delimiter = ";";
 
         if (!matchKeyword('extends')) {
-            object = parseTypeObjectInitialiser();
+            object = parseTypeObjectInitialiser(opt);
         } else {
             object = {};
         }
