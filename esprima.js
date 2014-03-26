@@ -2035,10 +2035,11 @@ parseYieldExpression: true
             };
         },
 
-        createInterfaceDeclaration: function (id, objectInitializer) {
+        createInterfaceDeclaration: function (id, objectInitializer, extended) {
             return {
                 type: Syntax.InterfaceDeclaration,
                 name: id,
+                'extends': extended,
                 object: objectInitializer
             };
         },
@@ -3435,16 +3436,6 @@ parseYieldExpression: true
             lex();
             init = parseAssignmentExpression();
         } else if (match(':')) {
-            /*expect(':');
-            if (match('(')) {
-                types = parseParams();
-                expect('=>');
-                returnType = parseTypeIdentifier();
-                type = delegate.createFunctionTypeDeclaration(types, returnType, false);
-            } else {
-                type = parseTypeIdentifier();
-            }*/
-            //they are always false!
             type = parseTypeDeclaration(false, true, ':');
             if (match('=')) {
                 lex();
@@ -4731,19 +4722,31 @@ parseYieldExpression: true
     }
 
     function parseInterfaceDeclaration() {
-        var id, object, opt;
+        var id, object, opt, extended, result;
+        extended = [];
         expectKeyword('interface');
         id = parseVariableIdentifier();
-        opt = {};
-        opt.required = true;
-        opt.delimiter = ";";
+        opt = {
+            'required': false,
+            'delimiter': ';'
+        };
 
         if (!matchKeyword('extends')) {
             object = parseTypeObjectInitialiser(opt);
         } else {
-            object = {};
+            expectKeyword('extends');
+            while (!match('{')) {
+                result = parseVariableDeclaration();
+                extended.push(result);
+                if (match(',')) {
+                    lex();
+                    if (match('{')) {
+                        throwError(Token.Punctuator, "Unexpected ,");
+                    }
+                }
+            }
         }
-        return delegate.createInterfaceDeclaration(id, object);
+        return delegate.createInterfaceDeclaration(id, object, extended);
     }
 
     // 15 Program
