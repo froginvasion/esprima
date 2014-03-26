@@ -2507,7 +2507,7 @@ parseYieldExpression: true
         expectedTokens = [];
         opt = false;
         result = {};
-        if (lookahead.type !== Token.Identifier || !(match('('))) {
+        if (lookahead.type !== Token.Identifier && !(match('('))) {
             throwError(Token.EOF, "Expected } or type variable");
         } else if (match('(')) {
             result.functionType = parseTypeDeclaration(false, false);
