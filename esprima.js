@@ -2060,10 +2060,11 @@ parseYieldExpression: true
             };
         },
 
-        createTypeDeclaration: function (name, optional) {
+        createTypeDeclaration: function (name, optional, array) {
             return {
                 type: Syntax.TypeDeclaration,
                 name: name,
+                array: array,
                 optional: optional
             };
         },
@@ -2292,11 +2293,18 @@ parseYieldExpression: true
 
     function parseTypeIdentifier(opt) {
         //either it is
-        var token = lex();
+        var result, token;
+        token = lex();
         if (token.type !== Token.Identifier && !matchKeyword('void') && !isTypeReservedWord(token.value)) {
             throwUnexpected(token);
         }
-        return delegate.createTypeDeclaration(token.value, opt);
+        result = token.value;
+        if (match('[')) {
+            lex();
+            expect(']');
+            return delegate.createTypeDeclaration(result, opt, true);
+        }
+        return delegate.createTypeDeclaration(result, opt);
     }
 
     // 11.1.4 Array Initialiser
@@ -2494,10 +2502,17 @@ parseYieldExpression: true
     }
 
     function parseTypePair() {
-        var id, opt, result, expectedTokens, type, types, lh2;
+        var id, opt, result, expectedTokens, types, lh, lh2;
         expectedTokens = [];
         opt = false;
         result = {};
+        if (lookahead.type !== Token.Identifier || !(match('('))) {
+            throwError(Token.EOF, "Expected } or type variable");
+        } else if (match('(')) {
+            result.functionType = parseTypeDeclaration(false, false);
+            return result;
+        }
+
         id = parseVariableIdentifier();
         result.key = id;
         if (match('?')) {
@@ -2507,26 +2522,26 @@ parseYieldExpression: true
         }
         lh2 = lookahead2();
         /* Either it is optional and the next one is '(', or it is non optional
-         * and the next one matches '(' 
+         * and the next one matches '('
          * this construct is needed to differentiate and exactly know which
          * construct is meant by the user.
          */
-        if ((opt && lh2.type === Token.Punctuator && lh2.value === '(') || !opt && match('(')) {
+        if ((opt && lh2.type === Token.Punctuator && lh2.value === '(') || (!opt && match('('))) {
             types = parseTypeDeclaration(id.optional, null, expectedTokens);
             delete types.returnType;
-        } else if ((opt && lh2.type === Token.Punctuator && lh2.value === ":") || !opt && match(':')) {
+        } else if ((opt && lh2.type === Token.Punctuator && lh2.value === ":") || (!opt && match(':'))) {
             expectedTokens.push(':');
             types = parseTypeDeclaration(id.optional, true, expectedTokens);
         } else {
 
-        } 
+        }
         result.value = {};
         result.value.typeDeclaration = types;
         return result;
     }
 
     function parseTypeObjectInitialiser(opt) {
-        var id, members, type, types, returnType, result;
+        var members, result;
         /* guards */
         if (typeof opt === 'undefined') {
             opt = {};
@@ -2544,12 +2559,12 @@ parseYieldExpression: true
             result = parseTypePair();
             members.push(result);
             if (opt.required) {
-                if (!match('}')) { 
+                if (!match('}')) {
                     expect(opt.delimiter);
                 }
             } else {
                 if (match(opt.delimiter)) {
-                    lex();
+                    expect(opt.delimiter);
                 }
             }
         }
@@ -3283,9 +3298,10 @@ parseYieldExpression: true
             }
             result = delegate.createFunctionTypeDeclaration(parsedParams, returnTypeIdentifier, opt);
         } else if (match('{')) {
-            options = {};
-            options.delimiter = ';';
-            options.required = true;
+            options = {
+                'delimiter': ';',
+                'required': false
+            };
             result = parseTypeObjectInitialiser(options);
             result = delegate.createObjectTypeDeclaration(result, opt);
         } else {
