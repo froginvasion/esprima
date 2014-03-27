@@ -2507,14 +2507,13 @@ parseYieldExpression: true
         expectedTokens = [];
         opt = false;
         result = {};
-        if (lookahead.type !== Token.Identifier && !(match('('))) {
+        if ((lookahead.type !== Token.Identifier && lookahead.type !== Token.Keyword) && !(match('('))) {
             throwError(Token.EOF, "Expected } or type variable");
         } else if (match('(')) {
             result.functionType = parseTypeDeclaration(false, false);
             return result;
         }
-
-        id = parseVariableIdentifier();
+        id = parseTypeVariableIdentifier();
         result.key = id;
         if (match('?')) {
             id.optional = true;
@@ -3400,6 +3399,16 @@ parseYieldExpression: true
         var token = lex();
 
         if (token.type !== Token.Identifier) {
+            throwUnexpected(token);
+        }
+
+        return delegate.createIdentifier(token.value);
+    }
+
+    function parseTypeVariableIdentifier() {
+        var token = lex();
+
+        if (token.type !== Token.Identifier && token.type !== Token.Keyword) {
             throwUnexpected(token);
         }
 
