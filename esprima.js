@@ -4740,9 +4740,7 @@ parseYieldExpression: true
             'delimiter': ';'
         };
 
-        if (!matchKeyword('extends')) {
-            object = parseTypeObjectInitialiser(opt);
-        } else {
+        if (matchKeyword('extends')) {
             expectKeyword('extends');
             while (!match('{')) {
                 result = parseVariableDeclaration();
@@ -4755,6 +4753,7 @@ parseYieldExpression: true
                 }
             }
         }
+        object = parseTypeObjectInitialiser(opt);
         return delegate.createInterfaceDeclaration(id, object, extended);
     }
 
