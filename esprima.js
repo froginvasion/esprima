@@ -160,6 +160,7 @@ parseYieldExpression: true
         MemberExpression: 'MemberExpression',
         MethodDefinition: 'MethodDefinition',
         ModuleDeclaration: 'ModuleDeclaration',
+        ModuleMember: 'ModuleMember',
         NewExpression: 'NewExpression',
         ObjectExpression: 'ObjectExpression',
         ObjectTypeDeclaration: 'ObjectTypeDeclaration',
@@ -2061,6 +2062,25 @@ parseYieldExpression: true
             };
         },
 
+        createTsModuleDeclaration: function (id, body, ambient) {
+            return {
+                type: Syntax.ModuleDeclaration,
+                id: id,
+                ambient: ambient,
+                body: body
+            };
+        },
+
+        createModuleMember: function (id, type, exported, body) {
+            return {
+                type: Syntax.ModuleMember,
+                id: id,
+                typeDeclaration: type,
+                exported: exported,
+                body: body
+            };
+        },
+
         createTypeDeclaration: function (name, optional, array) {
             return {
                 type: Syntax.TypeDeclaration,
@@ -2507,11 +2527,13 @@ parseYieldExpression: true
         expectedTokens = [];
         opt = false;
         result = {};
-        if ((lookahead.type !== Token.Identifier && lookahead.type !== Token.Keyword) && !(match('('))) {
+        if ((lookahead.type !== Token.Identifier && lookahead.type !== Token.Keyword) && !(match('(')) && !(match('['))) {
             throwError(Token.EOF, "Expected } or type variable");
         } else if (match('(')) {
             result.functionType = parseTypeDeclaration(false, false);
             return result;
+        } else if (match('[')) {
+
         }
         id = parseTypeVariableIdentifier();
         result.key = id;
@@ -4730,28 +4752,60 @@ parseYieldExpression: true
         return delegate.createClassDeclaration(id, superClass, parseClassBody());
     }
 
+    function parseTypeVariables() {
+        var typevars, id;
+        typevars = [];
+        if (match('<')) {
+            expect('<');
+            while (!match('>')) {
+                id = parseVariableIdentifier();
+                typevars.push(id);
+                if (match(',')) {
+                    lex();
+                    if (match('>')) {
+                        throwError(Token.Punctuator, "Unexpected >");
+                    }
+                }
+            }
+            expect('>');
+        }
+        return typevars;
+    }
+
+    function parseKeywordAndList(keyword, expected) {
+        var result, results;
+        results = [];
+        if (typeof expected === 'undefined') {
+            expected = "{";
+        }
+        expectKeyword(keyword);
+        while (!match(expected)) {
+            result = parseVariableDeclaration();
+            parseTypeVariables();
+            results.push(result);
+            if (match(',')) {
+                lex();
+                if (match(expected)) {
+                    throwError(Token.Punctuator, "Unexpected ,");
+                }
+            }
+        }
+        return results;
+    }
+
     function parseInterfaceDeclaration() {
-        var id, object, opt, extended, result;
+        var id, object, opt, extended, result, types;
         extended = [];
         expectKeyword('interface');
         id = parseVariableIdentifier();
+        types = parseTypeVariables();
         opt = {
             'required': false,
             'delimiter': ';'
         };
 
         if (matchKeyword('extends')) {
-            expectKeyword('extends');
-            while (!match('{')) {
-                result = parseVariableDeclaration();
-                extended.push(result);
-                if (match(',')) {
-                    lex();
-                    if (match('{')) {
-                        throwError(Token.Punctuator, "Unexpected ,");
-                    }
-                }
-            }
+            extended = parseKeywordAndList("extends", "{");
         }
         object = parseTypeObjectInitialiser(opt);
         return delegate.createInterfaceDeclaration(id, object, extended);
@@ -4797,11 +4851,65 @@ parseYieldExpression: true
     }
 
     function parseAmbientClassDeclaration() {
+        var implemented, ext;
         expectKeyword('class');
+        if (match('implements')) {
+            implemented = parseKeywordAndList("implements", "{");
+        }
+        if (matchKeyword('extends')) {
+            lex();
+            ext = parseTypeVariableIdentifier();
+        }
+        expect('{');
+        while (!(match('}'))) {
+           //todo implement
+        }
     }
 
     function parseAmbientModuleDeclaration() {
+        var result, member;
+        result = [];
         expectKeyword('module');
+        var identifier = parseVariableIdentifier();
+        expect('{');
+        while (!match('}')) {
+            member = parseModuleMember();
+            if (match(';')) {
+                lex();
+            }
+            result.push(member);
+        }
+        expect('}');
+        return delegate.createTsModuleDeclaration(identifier, result, true);
+    }
+
+    function parseModuleMember() {
+        var exported, identifier, opt, type, results;
+        exported = false;
+        if (matchKeyword('export')) {
+            lex();
+            exported = true;
+        }
+        if (matchKeyword('var')) {
+            lex();
+            identifier = parseTypeVariableIdentifier();
+            if (match('?')) {
+                opt = true;
+                lex();
+            }
+            type = parseTypeDeclaration(opt, true, ":");
+        } else if (matchKeyword('function')) {
+            lex();
+            identifier = parseTypeVariableIdentifier();
+            type = parseTypeDeclaration(false, false);
+        } else if (match('class')) {
+            throwError(Token.Keyword, "Class not yet supported");
+        } else if (match('module')) {
+            throwError(Token.Keyword, "Nested modules not supported yet");
+        } else {
+            throwError(Token.Punctuator, "Expected }");
+        }
+        return delegate.createModuleMember(identifier, type, exported);
     }
 
     function parseAmbientDeclaration() {
@@ -4816,7 +4924,7 @@ parseYieldExpression: true
         } else if (matchKeyword("enum")) {
             //not supported
         } else if (matchKeyword("module")) {
-            parseAmbientModuleDeclaration();
+            return parseAmbientModuleDeclaration();
         }
         if (match(';')) {
             lex();
