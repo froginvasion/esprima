@@ -2522,6 +2522,9 @@ parseYieldExpression: true
         throwUnexpected(lex());
     }
 
+    /*
+     * call, construct, index, property or function signature
+     */
     function parseTypePair() {
         var id, opt, result, expectedTokens, types, lh, lh2;
         expectedTokens = [];
@@ -2533,7 +2536,7 @@ parseYieldExpression: true
             result.functionType = parseTypeDeclaration(false, false);
             return result;
         } else if (match('[')) {
-
+            //indexable objects
         }
         id = parseTypeVariableIdentifier();
         result.key = id;
@@ -4850,20 +4853,45 @@ parseYieldExpression: true
         return delegate.createAmbientDeclaration(Syntax.AmbientFunctionDeclaration, identifier, type);
     }
 
+    function parseClassMembers() {
+
+    }
+
     function parseAmbientClassDeclaration() {
-        var implemented, ext;
+        var implemented, spr, identifier, body, result, isStatic, visibilityModifier;
+        body = [];
         expectKeyword('class');
+        identifier = parseTypeVariableIdentifier();
         if (match('implements')) {
             implemented = parseKeywordAndList("implements", "{");
         }
         if (matchKeyword('extends')) {
             lex();
-            ext = parseTypeVariableIdentifier();
+            spr = parseTypeVariableIdentifier();
         }
         expect('{');
         while (!(match('}'))) {
-           //todo implement
+            if (matchKeyword('public')) {
+                lex();
+                visibilityModifier = "public";
+            } else if (matchKeyword('private')) {
+                lex();
+                visibilityModifier = "private";
+            }
+            if (matchKeyword('static')) {
+                lex();
+                isStatic = true;
+                if (matchKeyword('public') || matchKeyword('private')) {
+                    //no public nor private allowed after static!
+                }
+            }
+            result = parseTypePair();
+            body.push(result);
+            if (match(';')) {
+                lex();
+            }
         }
+        expect('}');
     }
 
     function parseAmbientModuleDeclaration() {
