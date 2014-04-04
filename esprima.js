@@ -2042,7 +2042,7 @@ parseYieldExpression: true
                 type: Syntax.InterfaceDeclaration,
                 name: id,
                 'extends': extended,
-                object: objectInitializer
+                body: objectInitializer
             };
         },
 
@@ -4914,6 +4914,7 @@ parseYieldExpression: true
             if (match(';')) {
                 lex();
             }
+            isStatic = false;
         }
         expect('}');
         return delegate.createClassDeclaration(identifier, spr, body, true);
