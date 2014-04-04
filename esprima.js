@@ -403,10 +403,10 @@ parseYieldExpression: true
         case 6:
             return (id === 'return') || (id === 'typeof') || (id === 'delete') ||
                 (id === 'switch') || (id === 'export') || (id === 'import') ||
-                (id === 'module');
+                (id === 'module') || (id === 'static') || (id === 'public');
         case 7:
             return (id === 'default') || (id === 'finally') || (id === 'extends') ||
-                (id === 'declare');
+                (id === 'declare') || (id === 'private');
         case 8:
             return (id === 'function') || (id === 'continue') || (id === 'debugger');
         case 9:
@@ -1987,12 +1987,13 @@ parseYieldExpression: true
             };
         },
 
-        createClassDeclaration: function (id, superClass, body) {
+        createClassDeclaration: function (id, superClass, body, ambient) {
             return {
                 type: Syntax.ClassDeclaration,
                 id: id,
                 superClass: superClass,
-                body: body
+                body: body,
+                ambient: ambient
             };
         },
 
@@ -2523,13 +2524,27 @@ parseYieldExpression: true
     }
 
     /*
-     * call, construct, index, property or function signature
+     * call, construct, index, property or function signature (for interface:
+     *
+     * class allows only: constructor, function, variable or accessors!
      */
-    function parseTypePair() {
-        var id, opt, result, expectedTokens, types, lh, lh2;
+    function parseTypePair(options) {
+        var id, opt, result, expectedTokens, types, lh, lh2, errorMsg;
         expectedTokens = [];
         opt = false;
         result = {};
+        errorMsg = "Unexpected token, expected 'function, constructor, variable or accessor";
+        if (typeof options === 'undefined') {
+            options = {
+                isClass: true
+            };
+        }
+        if (options.isClass) {
+            if (match('(') || match('[')) {
+                throwError(Token.Punctuator, errorMsg);
+            }
+        }
+
         if ((lookahead.type !== Token.Identifier && lookahead.type !== Token.Keyword) && !(match('(')) && !(match('['))) {
             throwError(Token.EOF, "Expected } or type variable");
         } else if (match('(')) {
@@ -2540,7 +2555,9 @@ parseYieldExpression: true
         }
         id = parseTypeVariableIdentifier();
         result.key = id;
-        if (match('?')) {
+        if (options.isClass && match('?')) {
+            throwError(Token.Punctuator, errorMsg);
+        } else if (match('?')) {
             id.optional = true;
             opt = true;
             expectedTokens.push('?');
@@ -4871,6 +4888,9 @@ parseYieldExpression: true
         }
         expect('{');
         while (!(match('}'))) {
+            /*
+             * special class keywords!
+             */
             if (matchKeyword('public')) {
                 lex();
                 visibilityModifier = "public";
@@ -4882,16 +4902,21 @@ parseYieldExpression: true
                 lex();
                 isStatic = true;
                 if (matchKeyword('public') || matchKeyword('private')) {
-                    //no public nor private allowed after static!
+                    /* no public nor private allowed after static! */
+                    throwError(Token.Keyword, "visibility Modifier should come before static");
                 }
             }
-            result = parseTypePair();
+            result = parseTypePair({ 'isClass': true});
+
+            result.value.static = isStatic;
+            result.value.visibility = visibilityModifier;
             body.push(result);
             if (match(';')) {
                 lex();
             }
         }
         expect('}');
+        return delegate.createClassDeclaration(identifier, spr, body, true);
     }
 
     function parseAmbientModuleDeclaration() {
@@ -4948,7 +4973,7 @@ parseYieldExpression: true
         } else if (matchKeyword("function")) {
             return parseAmbientFunctionDeclaration();
         } else if (matchKeyword("class")) {
-            parseAmbientClassDeclaration();
+            return parseAmbientClassDeclaration();
         } else if (matchKeyword("enum")) {
             //not supported
         } else if (matchKeyword("module")) {
