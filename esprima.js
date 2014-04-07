@@ -2536,9 +2536,11 @@ parseYieldExpression: true
         errorMsg = "Unexpected token, expected 'function, constructor, variable or accessor";
         if (typeof options === 'undefined') {
             options = {
-                isClass: true
+                isClass: false
             };
         }
+        /* Classes can't be callable nor indexeable "things" on their own, and
+        * this cant be enforced by interfaces either! */
         if (options.isClass) {
             if (match('(') || match('[')) {
                 throwError(Token.Punctuator, errorMsg);
