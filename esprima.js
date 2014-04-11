@@ -4949,17 +4949,17 @@ parseYieldExpression: true
         if (matchKeyword('var')) {
             lex();
             identifier = parseTypeVariableIdentifier();
-            if (match('?')) {
-                opt = true;
-                lex();
+            if (match(':')) {
+                type = parseTypeDeclaration(false, true, ":");
             }
-            type = parseTypeDeclaration(opt, true, ":");
         } else if (matchKeyword('function')) {
             lex();
             identifier = parseTypeVariableIdentifier();
             type = parseTypeDeclaration(false, false);
-        } else if (match('class')) {
-            throwError(Token.Keyword, "Class not yet supported");
+        } else if (matchKeyword('interface')) {
+            type = parseInterfaceDeclaration();
+        } else if (matchKeyword('class')) {
+            type = parseAmbientClassDeclaration();
         } else if (match('module')) {
             throwError(Token.Keyword, "Nested modules not supported yet");
         } else {
