@@ -4873,11 +4873,34 @@ parseYieldExpression: true
     }
 
     function parseClassMembers() {
+        var visibilityModifier, isStatic, result;
+        /*
+         * special class keywords!
+         */
+        if (matchKeyword('public')) {
+            lex();
+            visibilityModifier = "public";
+        } else if (matchKeyword('private')) {
+            lex();
+            visibilityModifier = "private";
+        }
+        if (matchKeyword('static')) {
+            lex();
+            isStatic = true;
+            if (matchKeyword('public') || matchKeyword('private')) {
+                /* no public nor private allowed after static! */
+                throwError(Token.Keyword, "visibility Modifier should come before static");
+            }
+        }
+        result = parseTypePair({ 'isClass': true});
 
+        result.value.static = isStatic;
+        result.value.visibility = visibilityModifier;
+        return result;
     }
 
     function parseAmbientClassDeclaration() {
-        var implemented, spr, identifier, body, result, isStatic, visibilityModifier;
+        var implemented, spr, identifier, body, result;
         body = [];
         expectKeyword('class');
         identifier = parseTypeVariableIdentifier();
@@ -4890,33 +4913,11 @@ parseYieldExpression: true
         }
         expect('{');
         while (!(match('}'))) {
-            /*
-             * special class keywords!
-             */
-            if (matchKeyword('public')) {
-                lex();
-                visibilityModifier = "public";
-            } else if (matchKeyword('private')) {
-                lex();
-                visibilityModifier = "private";
-            }
-            if (matchKeyword('static')) {
-                lex();
-                isStatic = true;
-                if (matchKeyword('public') || matchKeyword('private')) {
-                    /* no public nor private allowed after static! */
-                    throwError(Token.Keyword, "visibility Modifier should come before static");
-                }
-            }
-            result = parseTypePair({ 'isClass': true});
-
-            result.value.static = isStatic;
-            result.value.visibility = visibilityModifier;
+            result = parseClassMembers();
             body.push(result);
             if (match(';')) {
                 lex();
             }
-            isStatic = false;
         }
         expect('}');
         return delegate.createClassDeclaration(identifier, spr, body, true);
@@ -5637,6 +5638,7 @@ parseYieldExpression: true
             wrapTracking = wrapTrackingFunction(extra.range, extra.loc);
 
             extra.parseAmbientDeclaration = parseAmbientDeclaration;
+            extra.parseAmbientClassDeclaration = parseAmbientClassDeclaration;
             extra.parseArrayInitialiser = parseArrayInitialiser;
             extra.parseAssignmentExpression = parseAssignmentExpression;
             extra.parseBinaryExpression = parseBinaryExpression;
@@ -5686,6 +5688,7 @@ parseYieldExpression: true
             extra.parseClassBody = parseClassBody;
 
             parseAmbientDeclaration = wrapTracking(extra.parseAmbientDeclaration);
+            parseAmbientClassDeclaration = wrapTracking(extra.parseAmbientClassDeclaration);
             parseArrayInitialiser = wrapTracking(extra.parseArrayInitialiser);
             parseAssignmentExpression = wrapTracking(extra.parseAssignmentExpression);
             parseBinaryExpression = wrapTracking(extra.parseBinaryExpression);
@@ -5753,6 +5756,7 @@ parseYieldExpression: true
 
         if (extra.range || extra.loc) {
             parseAmbientDeclaration = extra.parseAmbientDeclaration;
+            parseAmbientClassDeclaration = extra.parseAmbientClassDeclaration;
             parseArrayInitialiser = extra.parseArrayInitialiser;
             parseAssignmentExpression = extra.parseAssignmentExpression;
             parseBinaryExpression = extra.parseBinaryExpression;
