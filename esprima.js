@@ -151,6 +151,7 @@ parseYieldExpression: true
         FunctionTypeDeclaration: 'FunctionTypeDeclaration',
         Identifier: 'Identifier',
         IfStatement: 'IfStatement',
+        IndexDeclaration: 'IndexDeclaration',
         ImportDeclaration: 'ImportDeclaration',
         ImportSpecifier: 'ImportSpecifier',
         InterfaceDeclaration: 'InterfaceDeclaration',
@@ -1724,6 +1725,15 @@ parseYieldExpression: true
             };
         },
 
+        createIndexDeclaration: function (id, keyType, valueType) {
+            return {
+                type: Syntax.IndexDeclaration,
+                id: id,
+                keyType: keyType,
+                valueType: valueType
+            };
+        },
+
         createIdentifier: function (name) {
             return {
                 type: Syntax.Identifier,
@@ -2094,7 +2104,7 @@ parseYieldExpression: true
         createObjectTypeDeclaration: function (obj, optional) {
             return {
                 type: Syntax.ObjectTypeDeclaration,
-                object: obj,
+                body: obj,
                 optional: optional
             };
         },
@@ -2529,7 +2539,7 @@ parseYieldExpression: true
      * class allows only: constructor, function, variable or accessors!
      */
     function parseTypePair(options) {
-        var id, opt, result, expectedTokens, types, lh, lh2, errorMsg;
+        var id, opt, result, expectedTokens, types, lh, lh2, errorMsg, keyType, valueType;
         expectedTokens = [];
         opt = false;
         result = {};
@@ -2553,7 +2563,12 @@ parseYieldExpression: true
             result.functionType = parseTypeDeclaration(false, false);
             return result;
         } else if (match('[')) {
-            //indexable objects
+            lex();
+            id = parseTypeVariableIdentifier();
+            keyType = parseTypeDeclaration(false, false, ':');
+            expect(']');
+            valueType = parseTypeDeclaration(false, false, ':');
+            return delegate.createIndexDeclaration(id, keyType, valueType);
         }
         id = parseTypeVariableIdentifier();
         result.key = id;
@@ -4970,6 +4985,14 @@ parseYieldExpression: true
     }
 
     function parseAmbientDeclaration() {
+        var result = parseAmbientMembers();
+        if (match(';')) {
+            lex();
+        }
+        return result;
+    }
+
+    function parseAmbientMembers() {
         expectKeyword('declare');
 
         if (matchKeyword("var")) {
@@ -4979,15 +5002,14 @@ parseYieldExpression: true
         } else if (matchKeyword("class")) {
             return parseAmbientClassDeclaration();
         } else if (matchKeyword("enum")) {
-            //not supported
+            throw new Error("Enum not supported yet");
         } else if (matchKeyword("module")) {
             return parseAmbientModuleDeclaration();
         }
-        if (match(';')) {
-            lex();
-        }
-        //return delegate.createAmbientDeclaration();
+        return;
     }
+
+
 
     function parseSourceElement() {
         if (lookahead.type === Token.Keyword) {
