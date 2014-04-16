@@ -161,6 +161,7 @@ parseYieldExpression: true
         MemberExpression: 'MemberExpression',
         MethodDefinition: 'MethodDefinition',
         ModuleDeclaration: 'ModuleDeclaration',
+        ModuleExportStatement: 'ModuleExportStatement',
         ModuleMember: 'ModuleMember',
         NewExpression: 'NewExpression',
         ObjectExpression: 'ObjectExpression',
@@ -2079,6 +2080,13 @@ parseYieldExpression: true
                 id: id,
                 ambient: ambient,
                 body: body
+            };
+        },
+
+        createModuleExportStatement: function (id) {
+            return {
+                type: Syntax.ModuleExportStatement,
+                id: id
             };
         },
 
@@ -4967,6 +4975,11 @@ parseYieldExpression: true
         exported = false;
         if (matchKeyword('export')) {
             lex();
+            if (match("=")) {
+                lex();
+                identifier = parseTypeIdentifier();
+                return delegate.createModuleExportStatement(identifier);
+            }
             exported = true;
         }
         if (matchKeyword('var')) {
