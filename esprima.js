@@ -4939,10 +4939,17 @@ parseYieldExpression: true
     }
 
     function parseAmbientModuleDeclaration() {
-        var result, member;
+        var result, member, identifier;
         result = [];
         expectKeyword('module');
-        var identifier = parseVariableIdentifier();
+        if (lookahead.type === Token.StringLiteral) {
+            identifier = delegate.createLiteral(lex());
+        } else if (isIdentifierName(lookahead)) {
+            identifier = parseVariableIdentifier();
+        } else {
+            throwError(Token.Identifier, "Identifier or literal expected");
+        }
+
         expect('{');
         while (!match('}')) {
             member = parseModuleMember();
