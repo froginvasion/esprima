@@ -414,7 +414,7 @@ parseYieldExpression: true
         case 9:
             return (id === 'interface');
         case 10:
-            return (id === 'instanceof');
+            return (id === 'instanceof') || (id === 'implements');
         default:
             return false;
         }
@@ -1998,11 +1998,12 @@ parseYieldExpression: true
             };
         },
 
-        createClassDeclaration: function (id, superClass, body, ambient) {
+        createClassDeclaration: function (id, superClass, implementing, body, ambient) {
             return {
                 type: Syntax.ClassDeclaration,
                 id: id,
                 superClass: superClass,
+                "implements": implementing,
                 body: body,
                 ambient: ambient
             };
@@ -2074,11 +2075,12 @@ parseYieldExpression: true
             };
         },
 
-        createTsModuleDeclaration: function (id, body, ambient) {
+        createTsModuleDeclaration: function (id, body, ambient, toplevel) {
             return {
                 type: Syntax.ModuleDeclaration,
                 id: id,
                 ambient: ambient,
+                toplevel: toplevel,
                 body: body
             };
         },
@@ -4927,12 +4929,12 @@ parseYieldExpression: true
         body = [];
         expectKeyword('class');
         identifier = parseTypeVariableIdentifier();
-        if (match('implements')) {
-            implemented = parseKeywordAndList("implements", "{");
-        }
         if (matchKeyword('extends')) {
             lex();
             spr = parseTypeVariableIdentifier();
+        }
+        if (matchKeyword('implements')) {
+            implemented = parseKeywordAndList("implements", "{");
         }
         expect('{');
         while (!(match('}'))) {
@@ -4943,10 +4945,10 @@ parseYieldExpression: true
             }
         }
         expect('}');
-        return delegate.createClassDeclaration(identifier, spr, body, true);
+        return delegate.createClassDeclaration(identifier, spr, implemented, body, true);
     }
 
-    function parseAmbientModuleDeclaration() {
+    function parseAmbientModuleDeclaration(isToplevel) {
         var result, member, identifier;
         result = [];
         expectKeyword('module');
@@ -4967,7 +4969,7 @@ parseYieldExpression: true
             result.push(member);
         }
         expect('}');
-        return delegate.createTsModuleDeclaration(identifier, result, true);
+        return delegate.createTsModuleDeclaration(identifier, result, true, isToplevel);
     }
 
     function parseModuleMember() {
