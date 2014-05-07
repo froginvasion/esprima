@@ -78,7 +78,25 @@ parseYieldExpression: true
         delegate,
         lookahead,
         state,
-        extra;
+        extra,
+        merge;
+
+    merge = function (o1, o2) {
+        var prop, o3, f;
+        o3 = {};
+        f = function (o) {
+            for (prop in o) {
+                if (o.hasOwnProperty(prop)) {
+                    if (typeof o3[prop] !== "undefined") {
+                        o3[prop] = o[prop];
+                    }
+                }
+            }
+        };
+        f(o1);
+        f(o2);
+        return o3;
+    };
 
     Token = {
         BooleanLiteral: 1,
@@ -2549,15 +2567,13 @@ parseYieldExpression: true
      * class allows only: constructor, function, variable or accessors!
      */
     function parseTypePair(options) {
-        var id, opt, result, expectedTokens, types, lh, lh2, errorMsg, keyType, valueType;
+        var id, opt, result, expectedTokens, types, lh, lh2, errorMsg, keyType, valueType, body;
         expectedTokens = [];
         opt = false;
         result = {};
         errorMsg = "Unexpected token, expected 'function, constructor, variable or accessor";
         if (typeof options === 'undefined') {
-            options = {
-                isClass: false
-            };
+            options = merge(options, {"isClass": false});
         }
         /* Classes can't be callable nor indexeable "things" on their own, and
         * this cant be enforced by interfaces either! */
@@ -2604,7 +2620,11 @@ parseYieldExpression: true
         } else {
 
         }
+        if (options.isClass && !options.ambient) {
+            body = parseFunctionSourceElements();
+        }
         result.value = {};
+        result.value.body = body;
         result.value.typeDeclaration = types;
         return result;
     }
@@ -4243,7 +4263,7 @@ parseYieldExpression: true
             case 'function':
                 return parseFunctionDeclaration();
             case 'class':
-                return parseClassDeclaration();
+                return parseClassDeclaration(false);
             case 'if':
                 return parseIfStatement();
             case 'return':
@@ -4781,7 +4801,8 @@ parseYieldExpression: true
         return delegate.createClassExpression(id, superClass, parseClassBody());
     }
 
-    function parseClassDeclaration() {
+    //@deprecated
+    function parseClassDeclaration_old() {
         var id, previousYieldAllowed, superClass = null;
 
         expectKeyword('class');
@@ -4897,7 +4918,7 @@ parseYieldExpression: true
         return delegate.createAmbientDeclaration(Syntax.AmbientFunctionDeclaration, identifier, type);
     }
 
-    function parseClassMembers() {
+    function parseClassMembers(ambient) {
         var visibilityModifier, isStatic, result;
         /*
          * special class keywords!
@@ -4917,14 +4938,14 @@ parseYieldExpression: true
                 throwError(Token.Keyword, "visibility Modifier should come before static");
             }
         }
-        result = parseTypePair({ 'isClass': true});
+        result = parseTypePair({'isClass': true, 'ambient': ambient});
 
         result.value.static = isStatic;
         result.value.visibility = visibilityModifier;
         return result;
     }
 
-    function parseAmbientClassDeclaration() {
+    function parseClassDeclaration(ambient) {
         var implemented, spr, identifier, body, result;
         body = [];
         expectKeyword('class');
@@ -4938,17 +4959,17 @@ parseYieldExpression: true
         }
         expect('{');
         while (!(match('}'))) {
-            result = parseClassMembers();
+            result = parseClassMembers(ambient);
             body.push(result);
             if (match(';')) {
                 lex();
             }
         }
         expect('}');
-        return delegate.createClassDeclaration(identifier, spr, implemented, body, true);
+        return delegate.createClassDeclaration(identifier, spr, implemented, body, ambient);
     }
 
-    function parseAmbientModuleDeclaration(isToplevel) {
+    function parseTsModuleDeclaration(ambient, isToplevel) {
         var result, member, identifier;
         result = [];
         expectKeyword('module');
@@ -4962,17 +4983,17 @@ parseYieldExpression: true
 
         expect('{');
         while (!match('}')) {
-            member = parseModuleMember();
+            member = parseModuleMember(ambient);
             if (match(';')) {
                 lex();
             }
             result.push(member);
         }
         expect('}');
-        return delegate.createTsModuleDeclaration(identifier, result, true, isToplevel);
+        return delegate.createTsModuleDeclaration(identifier, result, ambient, isToplevel);
     }
 
-    function parseModuleMember() {
+    function parseModuleMember(ambient) {
         var exported, identifier, opt, type, results;
         exported = false;
         if (matchKeyword('export')) {
@@ -4997,7 +5018,7 @@ parseYieldExpression: true
         } else if (matchKeyword('interface')) {
             type = parseInterfaceDeclaration();
         } else if (matchKeyword('class')) {
-            type = parseAmbientClassDeclaration();
+            type = parseClassDeclaration(ambient);
         } else if (match('module')) {
             throwError(Token.Keyword, "Nested modules not supported yet");
         } else {
@@ -5015,20 +5036,20 @@ parseYieldExpression: true
     }
 
     function parseAmbientMembers() {
-        expectKeyword('declare');
+        expectKeyword("declare");
 
         if (matchKeyword("var")) {
             return parseAmbientVariableDeclaration();
         } else if (matchKeyword("function")) {
             return parseAmbientFunctionDeclaration();
         } else if (matchKeyword("class")) {
-            return parseAmbientClassDeclaration();
+            return parseClassDeclaration(true);
         } else if (matchKeyword("enum")) {
             throw new Error("Enum not supported yet");
         } else if (matchKeyword("module")) {
-            return parseAmbientModuleDeclaration();
+            return parseTsModuleDeclaration(true, true);
         }
-        return;
+        throwError(Token.Keyword, "Expecting either var, function, class or module");
     }
 
 
@@ -5072,9 +5093,8 @@ parseYieldExpression: true
                 return parseImportDeclaration();
             }
         }
-
-        if (matchModuleDeclaration()) {
-            return parseModuleDeclaration();
+        if (matchKeyword("module")) {
+            return parseTsModuleDeclaration(false, true);
         }
 
         return parseSourceElement();
@@ -5682,7 +5702,7 @@ parseYieldExpression: true
             wrapTracking = wrapTrackingFunction(extra.range, extra.loc);
 
             extra.parseAmbientDeclaration = parseAmbientDeclaration;
-            extra.parseAmbientClassDeclaration = parseAmbientClassDeclaration;
+            extra.parseClassDeclaration = parseClassDeclaration;
             extra.parseArrayInitialiser = parseArrayInitialiser;
             extra.parseAssignmentExpression = parseAssignmentExpression;
             extra.parseBinaryExpression = parseBinaryExpression;
@@ -5732,7 +5752,7 @@ parseYieldExpression: true
             extra.parseClassBody = parseClassBody;
 
             parseAmbientDeclaration = wrapTracking(extra.parseAmbientDeclaration);
-            parseAmbientClassDeclaration = wrapTracking(extra.parseAmbientClassDeclaration);
+            //parseClassDeclaration = wrapTracking(extra.parseClassDeclaration);
             parseArrayInitialiser = wrapTracking(extra.parseArrayInitialiser);
             parseAssignmentExpression = wrapTracking(extra.parseAssignmentExpression);
             parseBinaryExpression = wrapTracking(extra.parseBinaryExpression);
@@ -5779,7 +5799,7 @@ parseYieldExpression: true
             parseVariableDeclaration = wrapTracking(extra.parseVariableDeclaration);
             parseVariableIdentifier = wrapTracking(extra.parseVariableIdentifier);
             parseMethodDefinition = wrapTracking(extra.parseMethodDefinition);
-            parseClassDeclaration = wrapTracking(extra.parseClassDeclaration);
+            //parseClassDeclaration = wrapTracking(extra.parseClassDeclaration);
             parseClassExpression = wrapTracking(extra.parseClassExpression);
             parseClassBody = wrapTracking(extra.parseClassBody);
         }
@@ -5800,7 +5820,7 @@ parseYieldExpression: true
 
         if (extra.range || extra.loc) {
             parseAmbientDeclaration = extra.parseAmbientDeclaration;
-            parseAmbientClassDeclaration = extra.parseAmbientClassDeclaration;
+            //parseClassDeclaration = extra.parseClassDeclaration;
             parseArrayInitialiser = extra.parseArrayInitialiser;
             parseAssignmentExpression = extra.parseAssignmentExpression;
             parseBinaryExpression = extra.parseBinaryExpression;
