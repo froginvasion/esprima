@@ -4890,8 +4890,11 @@ parseYieldExpression: true
         return false;
     }
 
-    function parseAmbientVariableDeclaration() {
+    function parseAmbientVariableDeclaration(isToplevel) {
         var identifier, type;
+        if (isToplevel) {
+            expectKeyword("declare");
+        }
         expectKeyword('var');
         identifier = parseVariableIdentifier();
         if (match(';')) {
@@ -4904,8 +4907,11 @@ parseYieldExpression: true
         return delegate.createAmbientDeclaration(Syntax.AmbientVariableDeclaration, identifier, type);
     }
 
-    function parseAmbientFunctionDeclaration() {
+    function parseAmbientFunctionDeclaration(isToplevel) {
         var identifier, type;
+        if(isToplevel) {
+            expectKeyword("declare");
+        }
         expectKeyword('function');
         identifier = parseVariableIdentifier();
         if (match(';')) {
@@ -4945,8 +4951,11 @@ parseYieldExpression: true
         return result;
     }
 
-    function parseClassDeclaration(ambient) {
+    function parseClassDeclaration(ambient, isToplevel) {
         var implemented, spr, identifier, body, result;
+        if (ambient && isToplevel) {
+            expectKeyword("declare");
+        }
         body = [];
         expectKeyword('class');
         identifier = parseTypeVariableIdentifier();
@@ -4971,6 +4980,9 @@ parseYieldExpression: true
 
     function parseTsModuleDeclaration(ambient, isToplevel) {
         var result, member, identifier;
+        if(ambient && isToplevel) {
+            expectKeyword("declare");
+        }
         result = [];
         expectKeyword('module');
         if (lookahead.type === Token.StringLiteral) {
@@ -5036,20 +5048,24 @@ parseYieldExpression: true
     }
 
     function parseAmbientMembers() {
-        expectKeyword("declare");
-
-        if (matchKeyword("var")) {
-            return parseAmbientVariableDeclaration();
-        } else if (matchKeyword("function")) {
-            return parseAmbientFunctionDeclaration();
-        } else if (matchKeyword("class")) {
-            return parseClassDeclaration(true);
-        } else if (matchKeyword("enum")) {
-            throw new Error("Enum not supported yet");
-        } else if (matchKeyword("module")) {
-            return parseTsModuleDeclaration(true, true);
+        if (matchKeyword("declare")) {
+            var lh2 = lookahead2();
+            if (lh2.type === Token.Keyword) {
+                if (lh2.value === "var") {
+                    return parseAmbientVariableDeclaration(true);
+                } else if (lh2.value === "function") {
+                    return parseAmbientFunctionDeclaration(true);
+                } else if (lh2.value === "class") {
+                    return parseClassDeclaration(true, true);
+                } else if (lh2.value === "enum") {
+                    throw new Error("Enum not supported yet");
+                } else if (lh2.value === "module") {
+                    return parseTsModuleDeclaration(true, true);
+                }
+            }
+            throwError(Token.Keyword, "declare expects either var, function, class, enum or module");
         }
-        throwError(Token.Keyword, "Expecting either var, function, class or module");
+        throwError(Token.Keyword, "expecting declare keyword");
     }
 
 
@@ -5759,6 +5775,7 @@ parseYieldExpression: true
             parseBlock = wrapTracking(extra.parseBlock);
             parseFunctionSourceElements = wrapTracking(extra.parseFunctionSourceElements);
             parseCatchClause = wrapTracking(extra.parseCatchClause);
+            parseClassDeclaration = wrapTracking(extra.parseClassDeclaration);
             parseComputedMember = wrapTracking(extra.parseComputedMember);
             parseConditionalExpression = wrapTracking(extra.parseConditionalExpression);
             parseConstLetDeclaration = wrapTracking(extra.parseConstLetDeclaration);
@@ -5827,6 +5844,7 @@ parseYieldExpression: true
             parseBlock = extra.parseBlock;
             parseFunctionSourceElements = extra.parseFunctionSourceElements;
             parseCatchClause = extra.parseCatchClause;
+            parseClassDeclaration = extra.parseClassDeclaration;
             parseComputedMember = extra.parseComputedMember;
             parseConditionalExpression = extra.parseConditionalExpression;
             parseConstLetDeclaration = extra.parseConstLetDeclaration;
