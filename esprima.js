@@ -2626,6 +2626,7 @@ parseYieldExpression: true
         result.value = {};
         result.value.body = body;
         result.value.typeDeclaration = types;
+        result.type = "KeyValuePair";
         return result;
     }
 
