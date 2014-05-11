@@ -2620,13 +2620,16 @@ parseYieldExpression: true
         } else {
 
         }
-        if (options.isClass && !options.ambient) {
+        if (options.isClass && match('=')) {
+            expect('=');
+            body = parseAssignmentExpression();
+        } else if (options.isClass && !options.ambient) {
             body = parseFunctionSourceElements();
         }
-        result.value = {};
+        result.value = {"type": "TypeValue"};
         result.value.body = body;
         result.value.typeDeclaration = types;
-        result.type = "KeyValuePair";
+        result.type = "TypePair";
         return result;
     }
 
