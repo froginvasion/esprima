@@ -4989,7 +4989,7 @@ parseYieldExpression: true
         }
         result = [];
         expectKeyword('module');
-        if (lookahead.type === Token.StringLiteral) {
+        if (isToplevel && lookahead.type === Token.StringLiteral) {
             identifier = delegate.createLiteral(lex());
         } else if (isIdentifierName(lookahead)) {
             identifier = parseVariableIdentifier();
@@ -5035,8 +5035,8 @@ parseYieldExpression: true
             type = parseInterfaceDeclaration();
         } else if (matchKeyword('class')) {
             type = parseClassDeclaration(ambient);
-        } else if (match('module')) {
-            throwError(Token.Keyword, "Nested modules not supported yet");
+        } else if (matchKeyword('module')) {
+            type = parseTsModuleDeclaration(true, false);
         } else {
             throwError(Token.Punctuator, "Expected }");
         }
