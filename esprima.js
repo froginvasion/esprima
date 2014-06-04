@@ -5759,6 +5759,7 @@ parseYieldExpression: true
             extra.parseTemplateElement = parseTemplateElement;
             extra.parseTemplateLiteral = parseTemplateLiteral;
             //extra.parseTypeIdentifier = parseTypeIdentifier;
+            extra.parseTsModuleDeclaration = parseTsModuleDeclaration;
             extra.parseTypeDeclaration = parseTypeDeclaration;
             extra.parseTypeObjectInitialiser = parseTypeObjectInitialiser;
             extra.parseStatement = parseStatement;
@@ -5810,6 +5811,7 @@ parseYieldExpression: true
             parseTemplateElement = wrapTracking(extra.parseTemplateElement);
             parseTemplateLiteral = wrapTracking(extra.parseTemplateLiteral);
             //todo: this one can't be wrapped because it conflicts with other methods being tracked! solution = ??
+            parseTsModuleDeclaration = wrapTracking(extra.parseTsModuleDeclaration);
             parseTypeDeclaration = wrapTracking(extra.parseTypeDeclaration);
             //parseTypeIdentifier = wrapTracking(extra.parseTypeIdentifier);
             parseTypeObjectInitialiser = wrapTracking(extra.parseTypeObjectInitialiser);
@@ -5878,6 +5880,7 @@ parseYieldExpression: true
             parsePropertyFunction = extra.parsePropertyFunction;
             parseTemplateElement = extra.parseTemplateElement;
             parseTemplateLiteral = extra.parseTemplateLiteral;
+            parseTsModuleDeclaration = extra.parseTsModuleDeclaration;
             parseTypeDeclaration = extra.parseTypeDeclaration;
             //parseTypeIdentifier  = extra.parseTypeIdentifier;
             parseTypeObjectInitialiser = extra.parseTypeObjectInitialiser;
