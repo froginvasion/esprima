@@ -2120,10 +2120,11 @@ parseYieldExpression: true
             };
         },
 
-        createTypeDeclaration: function (name, optional, array) {
+        createTypeDeclaration: function (name, optional, array, path) {
             return {
                 type: Syntax.TypeDeclaration,
                 name: name,
+                path: path,
                 array: array,
                 optional: optional
             };
@@ -2353,18 +2354,31 @@ parseYieldExpression: true
 
     function parseTypeIdentifier(opt) {
         //either it is
-        var result, token;
+        var result, token, path;
         token = lex();
         if (token.type !== Token.Identifier && !matchKeyword('void') && !isTypeReservedWord(token.value)) {
             throwUnexpected(token);
         }
         result = token.value;
+        if (match(".")) {
+            path = [result];
+        }
+        while (match(".")) {
+            lex();
+            token = lex();
+            if (token.type !== Token.Identifier && !matchKeyword('void') && !isTypeReservedWord(token.value)) {
+                throwUnexpected(token);
+            }
+            path.push(token.value);
+        }
+
+
         if (match('[')) {
             lex();
             expect(']');
-            return delegate.createTypeDeclaration(result, opt, true);
+            return delegate.createTypeDeclaration(result, opt, true, path);
         }
-        return delegate.createTypeDeclaration(result, opt);
+        return delegate.createTypeDeclaration(result, opt, void 0, path);
     }
 
     // 11.1.4 Array Initialiser
@@ -4448,7 +4462,7 @@ parseYieldExpression: true
             }
 
             //types for arguments
-            if (match('?') || match(':')) {
+            if (match(':')) {
                 expectedTokens.push(':');
                 param.typeDeclaration = parseTypeDeclaration(opt, true, expectedTokens);
             }
