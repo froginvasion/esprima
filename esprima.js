@@ -4462,7 +4462,7 @@ parseYieldExpression: true
             }
 
             //types for arguments
-            if (match(':')) {
+            if (match(':') || match('?')) {
                 expectedTokens.push(':');
                 param.typeDeclaration = parseTypeDeclaration(opt, true, expectedTokens);
             }
