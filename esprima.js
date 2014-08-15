@@ -2607,7 +2607,7 @@ parseYieldExpression: true
             id = parseTypeVariableIdentifier();
             keyType = parseTypeDeclaration(false, false, ':');
             expect(']');
-            valueType = parseTypeDeclaration(false, false, ':');
+            valueType = parseTypeDeclaration(false, true, ':');
             return delegate.createIndexDeclaration(id, keyType, valueType);
         }
         id = parseTypeVariableIdentifier();
