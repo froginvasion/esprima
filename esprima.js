@@ -2597,7 +2597,7 @@ parseYieldExpression: true
             }
         }
 
-        if ((lookahead.type !== Token.Identifier && lookahead.type !== Token.Keyword) && !(match('(')) && !(match('['))) {
+        if ((lookahead.type !== Token.Identifier && lookahead.type !== Token.Keyword && lookahead.type !== Token.BooleanLiteral && lookahead.type !== Token.NullLiteral) && !(match('(')) && !(match('['))) {
             throwError(Token.EOF, "Expected } or type variable");
         } else if (match('(')) {
             result.functionType = parseTypeDeclaration(false, false);
@@ -3515,7 +3515,7 @@ parseYieldExpression: true
     function parseTypeVariableIdentifier() {
         var token = lex();
 
-        if (token.type !== Token.Identifier && token.type !== Token.Keyword) {
+        if (token.type !== Token.Identifier && token.type !== Token.Keyword && token.type !== Token.BooleanLiteral && token.type !== Token.NullLiteral) {
             throwUnexpected(token);
         }
 
